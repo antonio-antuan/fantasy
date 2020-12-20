@@ -10,7 +10,7 @@ use std::fmt::Debug;
 use serde::de::{Deserialize, Deserializer};
 {% endif %}
 
-{% include "rtdlib/src/types/td_type_trait.rs" %}
+{% include "telegram-tdlib/types/td_type_trait.rs" %}
 {% else %}
-{% include "rtdlib/src/types/td_type_struct.rs" %}
+{% include "telegram-tdlib/types/td_type_struct.rs" %}
 {% endif %}

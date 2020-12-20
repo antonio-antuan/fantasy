@@ -1,7 +1,7 @@
 use std::sync::{RwLock};
 use std::collections::HashMap;
 use futures::channel::mpsc;
-use rtdlib::types::{RObject, TdType};
+use crate::types::{RObject, TdType};
 
 lazy_static! {
   static ref OBSERVER: Observer = {
@@ -21,7 +21,7 @@ impl Observer {
   }
 
   fn notify(&self, payload: TdType) {
-    let extra = match payload {
+    let extra = match &payload {
 {% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}
       TdType::{{token.name | to_camel}}(value) => value.extra(),
 {% endfor %}
@@ -33,14 +33,11 @@ impl Observer {
 {% endif %}{% endfor %}
 
     };
-    match extra {
-      Some(extra) => {
-        let mut map = self.channels.write().unwrap();
-        if let Some(sender) = map.get_mut(&extra) {
-          sender.try_send(payload).unwrap();
-        }
-      },
-      None => {}
+    if let Some(extra) = extra {
+      let mut map = self.channels.write().unwrap();
+      if let Some(sender) = map.get_mut(&extra) {
+        sender.try_send(payload).unwrap();
+      }
     }
   }
 

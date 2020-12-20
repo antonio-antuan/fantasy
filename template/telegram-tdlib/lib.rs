@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_use]
 extern crate log;
@@ -5,12 +7,10 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
-mod rtd;
-mod handler;
-mod tip;
-mod observer;
 
-pub mod api;
+pub(crate) use rtdlib_sys::Tdlib;
+
 pub mod client;
-pub mod listener;
+
+pub mod types;
 pub mod errors;

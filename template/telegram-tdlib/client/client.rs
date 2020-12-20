@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use rtdlib::Tdlib;
+use crate::Tdlib;
 
-use crate::api::Api;
-use crate::listener::Listener;
-use crate::rtd::TdRecv;
+use super::api::Api;
+use super::listener::Listener;
+use super::rtd::TdRecv;
 
 #[derive(Clone)]
 pub struct Client {

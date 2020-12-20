@@ -1,6 +1,6 @@
-use rtdlib::errors::*;
-use rtdlib::types::*;
-use crate::api::Api;
+use crate::errors::*;
+use crate::types::*;
+use super::api::Api;
 
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ impl EventApi {
     {% if token.blood and token.blood == 'Ok' %}
     match self.execute({{token.name | to_snake}}.as_ref())? {
       Some(json) => Ok({{token.blood}}::from_json(json)?),
-      None => Err(rtdlib::errors::RTDError::custom(tip::no_data_returned_from_tdlib())),
+      None => Err(rtdlib::errors::RTDError::Internal(tip::no_data_returned_from_tdlib())),
     }
     {% else %}  self.api.send({{token.name | to_snake}}.as_ref()){% endif %}
   }

@@ -1,5 +1,5 @@
 
-use rtdlib::types::RObject;
+use crate::types::RObject;
 
 const PLZ_POST_ISSUES: &'static str = "PLEASE POST AN ISSUE TO https://github.com/fewensa/telegram-client/issues";
 

@@ -1,12 +1,12 @@
 use std::borrow::Borrow;
 use std::sync::Arc;
 
-use rtdlib::errors::RTDResult;
-use rtdlib::Tdlib;
-use rtdlib::types::RFunction;
+use crate::errors::RTDResult;
+use crate::Tdlib;
+use crate::types::RFunction;
 
-use crate::api::aasync::AsyncApi;
-use crate::api::aevent::EventApi;
+use super::aasync::AsyncApi;
+use super::aevent::EventApi;
 
 #[derive(Debug, Clone)]
 pub struct ApiBuilder {
@@ -142,7 +142,7 @@ impl Api {
   pub fn execute<Fnc: RFunction>(&self, fnc: Fnc) -> RTDResult<Option<String>> {
     let json = fnc.to_json()?;
     if self.log {
-      info!("===>>> {}", self.safe_log(&json));
+      debug!("===>>> {}", self.safe_log(&json));
     }
     Ok(self.tdlib.execute(&json[..]))
   }

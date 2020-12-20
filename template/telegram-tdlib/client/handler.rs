@@ -1,11 +1,11 @@
-use rtdlib::types as rtd_types;
 
-use crate::api::aevent::EventApi;
-use crate::listener::Lout;
-use crate::errors::TGError;
-use crate::observer;
-use crate::tip;
-use rtdlib::types::*;
+use super::api::aevent::EventApi;
+use super::listener::Lout;
+use super::errors::TGError;
+use super::observer;
+use super::tip;
+
+use crate::types as rtd_types;
 
 pub struct Handler<'a> {
   api: &'a EventApi,
@@ -44,12 +44,10 @@ impl<'a> Handler<'a> {
           }
         }
 
-        // observer handler
         observer::notify(t);
       }
       Err(e) => {
         error!("{}", tip::data_fail_with_json(json));
-        // eprintln!("{:?}", e);
         error!("{:?}", e);
         if let Some(ev) = self.lout.exception() { ev((self.api, &TGError::new("DESERIALIZE_JSON_FAIL"))); }
       }

@@ -41,55 +41,6 @@ macro_rules! rtd_enum_deserialize {
 }
 
 
-///// tuple enum is field
-//macro_rules! tuple_enum_is {
-//  ($enum_name:ident, $field:ident) => {
-//    |o: &$enum_name| {
-//      if let $enum_name::$field(_) = o { true } else { false }
-//    }
-//  };
-////  ($e:ident, $t:ident, $namespace:ident) => {
-////    Box::new(|t: &$e| {
-////      match t {
-////        $namespace::$e::$t(_) => true,
-////        _ => false
-////      }
-////    })
-////  };
-//}
-//
-//macro_rules! tuple_enum_on {
-//  ($enum_name:ident, $field:ident, $fnc:expr) => {
-//    |o: &$enum_name| {
-//      if let $enum_name::$field(t) = o { $fnc(t) }
-//    }
-//  };
-//}
-
-pub fn detect_td_type<S: AsRef<str>>(json: S) -> Option<String> {
-  let result: Result<serde_json::Value, serde_json::Error> = serde_json::from_str::<serde_json::Value>(json.as_ref());
-  if let Err(_) = result { return None }
-  let value = result.unwrap();
-  value.as_object().map_or(None, |v| {
-    v.get("@type").map_or(None, |t| t.as_str().map_or(None, |t| {
-      Some(t.to_string())
-    }))
-  })
-}
-
-pub fn detect_td_type_and_extra<S: AsRef<str>>(json: S) -> (Option<String>, Option<String>) {
-  let result: Result<serde_json::Value, serde_json::Error> = serde_json::from_str::<serde_json::Value>(json.as_ref());
-  if let Err(_) = result { return (None, None) }
-  let value = result.unwrap();
-  let mut type_ = None;
-  let mut extra = None;
-  if let Some(map) = value.as_object() {
-    map.get("@type").map(|v| v.as_str().map(|t| type_.replace(t.to_string())));
-    map.get("@extra").map(|v| v.as_str().map(|t| extra.replace(t.to_string())));
-  }
-  (type_, extra)
-}
-
 pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deserialize<'a>, {
   Ok(serde_json::from_str(json.as_ref())?)
 }
