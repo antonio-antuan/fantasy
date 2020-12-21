@@ -2,22 +2,16 @@ use std::sync::Arc;
 
 use crate::types::*;
 use super::errors::*;
-use super::api::aevent::EventApi;
+use super::api::Api;
 
 
 /// Telegram client event listener
 #[derive(Clone, Default)]
 pub struct Listener {
-  exception: Option<Arc<dyn Fn((&EventApi, &TGError)) + Send + Sync + 'static>>,
-  receive: Option<Arc<dyn Fn((&EventApi, &String)) -> TGResult<()> + Send + Sync + 'static>>,
-
-{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}  {{name | to_snake}}: Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>>,
-{% endfor %}
-
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}  {{token.name  | to_snake}}: Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>>,
-{% endif %}{% endfor %}
-
-{% for token in tokens %}{% if token.is_return_type %}  {{token.name | to_snake}}: Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>>,
+  exception: Option<Arc<dyn Fn((&Api, &TGError)) + Send + Sync + 'static>>,
+  receive: Option<Arc<dyn Fn((&Api, &String)) -> TGResult<()> + Send + Sync + 'static>>,
+{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}  {{token.name  | to_snake}}: Option<Arc<dyn Fn((&Api, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>>,
+// {% if true %}update{% endif %}
 {% endif %}{% endfor %}
 }
 
@@ -31,41 +25,22 @@ impl Listener {
 
 
   /// when receive data from tdlib
-  pub fn on_receive<F>(&mut self, fnc: F) -> &mut Self where F: Fn((&EventApi, &String)) -> TGResult<()> + Send + Sync + 'static {
+  pub fn on_receive<F>(&mut self, fnc: F) -> &mut Self where F: Fn((&Api, &String)) -> TGResult<()> + Send + Sync + 'static {
     self.receive = Some(Arc::new(fnc));
     self
   }
 
   /// when telegram client throw exception
-  pub fn on_exception<F>(&mut self, fnc: F) -> &mut Self where F: Fn((&EventApi, &TGError)) + Send + Sync + 'static {
+  pub fn on_exception<F>(&mut self, fnc: F) -> &mut Self where F: Fn((&Api, &TGError)) + Send + Sync + 'static {
     self.exception = Some(Arc::new(fnc));
     self
   }
-
-{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}
-  /// {{token.description}}
-  pub fn on_{{name | to_snake}}<F>(&mut self, fnc: F) -> &mut Self where F: Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static {
-    self.{{name}} = Some(Arc::new(fnc));
-    self
-  }
-{% endfor %}
-
-
-
 {% for token in tokens %}{% if token.blood and token.blood == 'Update' %}
   /// {{token.description}}
+  // {% if true %}update{% endif %}
   pub fn on_{{token.name  | to_snake}}<F>(&mut self, fnc: F) -> &mut Self
-    where F: Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static {
+    where F: Fn((&Api, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static {
     self.{{token.name  | to_snake}} = Some(Arc::new(fnc));
-    self
-  }
-{% endif %}{% endfor %}
-
-{% for token in tokens %}{% if token.is_return_type %}
-  /// {{token.description}}
-  pub fn on_{{token.name | to_snake}}<F>(&mut self, fnc: F) -> &mut Self
-    where F: Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static {
-    self.{{token.name | to_snake}} = Some(Arc::new(fnc));
     self
   }
 {% endif %}{% endfor %}
@@ -80,16 +55,8 @@ pub struct Lout {
 
 impl Lout {
   fn new(listener: Listener) -> Self {
-    let supports = vec![
-{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}      "{{token.name | to_snake | to_camel_lowercase}}",
-{% endfor %}
-
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}      "{{token.name}}",
-{% endif %}{% endfor %}
-
-{% for token in tokens %}{% if token.is_return_type %}      "{{token.name}}",
-{% endif %}{% endfor %}
-
+    let supports = vec![{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}
+      "{{token.name}}",{% endif %}{% endfor %}
     ];
     Self { listener, supports }
   }
@@ -100,43 +67,40 @@ impl Lout {
       .is_some()
   }
 
-  pub fn handle_type(&self, api: &EventApi, td_type: &TdType) -> TGResult<bool>  {
+  pub fn handle_type(&self, api: &Api, td_type: &TdType) -> TGResult<bool>  {
     match td_type {
 {% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}
+      // {% if true %}listener{% endif %}
       TdType::{{token.name | to_camel}}(value) => match &self.listener.{{name | to_snake}} {
-      None => Ok(false),
-      Some(f) => f((api, value)).map(|_|true),
+        None => Ok(false),
+        Some(f) => f((api, value)).map(|_|true),
     },
 {% endfor %}
 {% for token in tokens %}{% if token.blood and token.blood == 'Update' %}
+    // {% if true %}update{% endif %}
       TdType::{{token.name | to_camel}}(value) => match &self.listener.{{token.name | to_snake}} {
-      None => Ok(false),
-      Some(f) => f((api, value)).map(|_|true),
+        None => Ok(false),
+        Some(f) => f((api, value)).map(|_|true),
     },
 {% endif %}{% endfor %}
-{% for token in tokens %}{% if token.is_return_type %}
-      TdType::{{token.name | to_camel}}(value) => match &self.listener.{{token.name | to_snake}} {
-      None => Ok(false),
-      Some(f) => f((api, value)).map(|_|true),
-    },
-{% endif %}{% endfor %}
-
+      _ => Ok(false)
   }
   }
 
   /// when telegram client throw exception
-  pub fn exception(&self) -> &Option<Arc<dyn Fn((&EventApi, &TGError)) + Send + Sync + 'static>> {
+  pub fn exception(&self) -> &Option<Arc<dyn Fn((&Api, &TGError)) + Send + Sync + 'static>> {
     &self.listener.exception
   }
 
   /// when receive data from tdlib
-  pub fn receive(&self) -> &Option<Arc<dyn Fn((&EventApi, &String)) -> TGResult<()> + Send + Sync + 'static>> {
+  pub fn receive(&self) -> &Option<Arc<dyn Fn((&Api, &String)) -> TGResult<()> + Send + Sync + 'static>> {
     &self.listener.receive
   }
 
 {% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}
   /// {{token.description}}
-  pub fn {{name | to_snake}}(&self) -> &Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>> {
+  // {% if true %}listener{% endif %}
+  pub fn {{name | to_snake}}(&self) -> &Option<Arc<dyn Fn((&Api, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>> {
     &self.listener.{{name | to_snake}}
   }
 {% endfor %}
@@ -144,18 +108,11 @@ impl Lout {
 
 {% for token in tokens %}{% if token.blood and token.blood == 'Update' %}
   /// {{token.description}}
-  pub fn {{token.name  | to_snake}}(&self) -> &Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>> {
+  // {% if true %}update{% endif %}
+  pub fn {{token.name  | to_snake}}(&self) -> &Option<Arc<dyn Fn((&Api, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>> {
     &self.listener.{{token.name  | to_snake}}
   }
 {% endif %}{% endfor %}
-
-{% for token in tokens %}{% if token.is_return_type %}
-  /// {{token.description}}
-  pub fn {{token.name | to_snake}}(&self) -> &Option<Arc<dyn Fn((&EventApi, &{{token.name | to_camel}})) -> TGResult<()> + Send + Sync + 'static>> {
-    &self.listener.{{token.name | to_snake}}
-  }
-{% endif %}{% endfor %}
-
 }
 
 

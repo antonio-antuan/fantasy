@@ -22,16 +22,9 @@ impl Observer {
 
   fn notify(&self, payload: TdType) {
     let extra = match &payload {
-{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}
-      TdType::{{token.name | to_camel}}(value) => value.extra(),
-{% endfor %}
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}
-      TdType::{{token.name | to_camel}}(value) => value.extra(),
-{% endif %}{% endfor %}
-{% for token in tokens %}{% if token.is_return_type %}
-      TdType::{{token.name | to_camel}}(value) => value.extra(),
-{% endif %}{% endfor %}
-
+{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endfor %}
+{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endif %}{% endfor %}
+{% for token in tokens %}{% if token.is_return_type %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endif %}{% endfor %}
     };
     if let Some(extra) = extra {
       let mut map = self.channels.write().unwrap();

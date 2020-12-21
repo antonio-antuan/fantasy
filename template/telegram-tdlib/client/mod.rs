@@ -1,6 +1,4 @@
 
-mod rtd;
-mod handler;
 mod tip;
 mod observer;
 
