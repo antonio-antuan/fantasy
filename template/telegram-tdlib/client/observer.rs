@@ -1,16 +1,14 @@
-use std::sync::{RwLock};
+use std::sync::RwLock;
 use std::collections::HashMap;
-use futures::channel::mpsc;
+use futures::channel::oneshot;
 use crate::types::{RObject, TdType};
 
 lazy_static! {
-  static ref OBSERVER: Observer = {
-    Observer::new()
-  };
+  pub static ref OBSERVER: Observer = Observer::new();
 }
 
-struct Observer {
-  channels: RwLock<HashMap<String, mpsc::Sender<TdType>>>,
+pub struct Observer {
+  channels: RwLock<HashMap<String, oneshot::Sender<TdType>>>,
 }
 
 impl Observer {
@@ -20,32 +18,40 @@ impl Observer {
     }
   }
 
-  fn notify(&self, payload: TdType) {
+  pub fn notify(&self, payload: TdType) -> Option<TdType> {
     let extra = match &payload {
-{% for name, td_type in listener %}{% set token = find_token(token_name = td_type) %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endfor %}
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endif %}{% endfor %}
-{% for token in tokens %}{% if token.is_return_type %}TdType::{{token.name | to_camel}}(value) => value.extra(),{% endif %}{% endfor %}
+{% for token in tokens %}{% if token.is_return_type %}
+      TdType::{{token.name | to_camel}}(value) => value.extra(),
+{% endif %}{% endfor %}
+      _ => {None}
     };
-    if let Some(extra) = extra {
-      let mut map = self.channels.write().unwrap();
-      if let Some(sender) = map.get_mut(&extra) {
-        sender.try_send(payload).unwrap();
+    match extra {
+      None => Some(payload),
+      Some(extra) => {
+          let mut map = self.channels.write().unwrap();
+          match map.remove(&extra) {
+              None => {Some(payload)}
+              Some(sender) => {
+                sender.send(payload).unwrap();
+                None
+              }
+          }
       }
     }
   }
 
-  fn subscribe(&self, extra: String) -> mpsc::Receiver<TdType> {
-    let (sender, receiver) = mpsc::channel::<TdType>(1);
+  pub fn subscribe(&self, extra: &String) -> oneshot::Receiver<TdType> {
+    let (sender, receiver) = oneshot::channel::<TdType>();
     match self.channels.write() {
       Ok(mut map) => {
-        map.insert(extra, sender);
+        map.insert(extra.to_string(), sender);
       }
       _ => {}
     };
     receiver
   }
 
-  fn unsubscribe(&self, extra: &str) {
+  pub fn unsubscribe(&self, extra: &String) {
     match self.channels.write() {
       Ok(mut map) => {
         map.remove(extra);
@@ -53,17 +59,4 @@ impl Observer {
       _ => {}
     };
   }
-}
-
-
-pub fn notify(payload: TdType) {
-  OBSERVER.notify(payload)
-}
-
-pub fn subscribe<T: AsRef<str>>(extra: T) -> mpsc::Receiver<TdType>{
-  OBSERVER.subscribe(extra.as_ref().to_string())
-}
-
-pub fn unsubscribe<T: AsRef<str>>(extra: T) {
-  OBSERVER.unsubscribe(extra.as_ref())
 }
