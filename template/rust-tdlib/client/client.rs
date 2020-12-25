@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, Condvar};
 use async_trait::async_trait;
-
+use rtdlib_sys::Tdlib;
 use super::observer::OBSERVER;
 
 use super::api::Api;
@@ -9,7 +9,6 @@ use crate::{
     types::from_json,
     types::TdType,
     types::{SetTdlibParameters, UpdateAuthorizationState, CheckAuthenticationCode, CheckDatabaseEncryptionKey, AuthorizationStateWaitCode, AuthorizationStateWaitEncryptionKey, AuthorizationStateWaitPassword, CheckAuthenticationPassword, SetAuthenticationPhoneNumber, TdlibParameters},
-    Tdlib
 };
 use tokio::{
     sync::mpsc,
@@ -19,16 +18,22 @@ use crate::types::{AuthorizationState, AuthorizationStateWaitPhoneNumber, Author
 use crate::errors::RTDResult;
 use std::io;
 
-
+/// `AuthStateHandler` trait provides methods, that returns data, required for authentication
 #[async_trait]
 pub trait AuthStateHandler {
+    /// Returns wait code
     async fn handle_wait_code(&self, wait_code: &AuthorizationStateWaitCode) -> String;
+    /// Returns database encryption key
     async fn handle_encryption_key(&self, wait_encryption_key: &AuthorizationStateWaitEncryptionKey) -> String;
+    /// Returns password
     async fn handle_wait_password(&self, wait_password: &AuthorizationStateWaitPassword) -> String;
+    /// Returns phone number
     async fn handle_wait_phone_number(&self, wait_phone_number: &AuthorizationStateWaitPhoneNumber) -> String;
     async fn handle_wait_registration(&self, wait_registration: &AuthorizationStateWaitRegistration) -> String;
 }
 
+/// Provides minimum implementation of `AuthStateHandler`.
+/// All required methods wait for stdin input
 pub struct TypeInAuthStateHandler {}
 
 impl TypeInAuthStateHandler {
@@ -70,6 +75,8 @@ impl AuthStateHandler for TypeInAuthStateHandler {
 }
 
 
+/// `Client` is a high-level abstraction of TDLib.
+/// Before start any API interactions you must call `start().await`.
 #[derive(Clone)]
 pub struct Client<A>
 where A: AuthStateHandler + Send + Sync + 'static
@@ -84,23 +91,12 @@ where A: AuthStateHandler + Send + Sync + 'static
 }
 
 impl<A> Client<A> where A: AuthStateHandler + Send + Sync + 'static{
-    pub fn set_log_verbosity_level<'a>(level: i32) -> Result<(), &'a str> {
-        Tdlib::set_log_verbosity_level(level)
-    }
-
-    pub fn set_log_max_file_size(size: i64) {
-        Tdlib::set_log_max_file_size(size)
-    }
-
-    pub fn set_log_file_path(path: Option<&str>) -> bool {
-        Tdlib::set_log_file_path(path)
-    }
-
     pub fn api(&self) -> &Api {
         &self.api
     }
 
     pub fn new(tdlib: Tdlib, auth_state_handler: A, tdlib_parameters: TdlibParameters) -> Self {
+        Tdlib::set_log_verbosity_level(0).unwrap();
         let stop_flag = Arc::new(Mutex::new(false));
         Self {
             stop_flag,
@@ -112,10 +108,14 @@ impl<A> Client<A> where A: AuthStateHandler + Send + Sync + 'static{
         }
     }
 
+    /// If you want to receive Telegram updates (messages, channels, etc; see `crate::types::TdType`),
+    /// you must set mpsc::Sender here.
     pub fn set_updates_sender(&mut self, updates_sender: mpsc::Sender<TdType>) {
         self.updates_sender = Some(updates_sender)
     }
 
+    /// Starts interaction with TDLib.
+    /// Method blocks until authorization performed.
     pub async fn start(&mut self) -> Result<JoinHandle<()>, RTDError> {
         let stop_flag = self.stop_flag.clone();
         let api = self.api.clone();
@@ -124,7 +124,7 @@ impl<A> Client<A> where A: AuthStateHandler + Send + Sync + 'static{
 
         let auth_state_handler = self.auth_state_handler.clone();
         let tdlib_params = self.tdlib_parameters.clone();
-        let (sx, mut rx) = mpsc::channel::<()>(3);
+        let (sx, mut rx) = mpsc::channel::<()>(1);
         let (auth_sx, mut auth_rx) = mpsc::channel::<UpdateAuthorizationState>(10);
         let auth_api = self.api.clone();
 
@@ -157,8 +157,8 @@ impl<A> Client<A> where A: AuthStateHandler + Send + Sync + 'static{
                 }
             }
         });
-
-        let auth_handle = tokio::spawn(async move {
+        // TODO: store auth handle within `Client` instance?
+        let _auth_handle = tokio::spawn(async move {
             while let Some(auth_state) = auth_rx.recv().await {
                 handle_auth_state(
                                 &auth_api,
@@ -170,6 +170,7 @@ impl<A> Client<A> where A: AuthStateHandler + Send + Sync + 'static{
             }
         });
 
+        // TODO: rx.recv() has to be called infinetelly in case of closed auth state
         rx.recv().await.unwrap();
         Ok(handle)
     }

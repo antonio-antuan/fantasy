@@ -52,7 +52,7 @@ impl<'a> TGClient<'a> {
           continue
         }
         let file_path = path.strip_prefix("./template").unwrap().as_os_str().to_str().unwrap();
-        let out_file_path = self.cycle.config().output_dir().join(path.strip_prefix("./template/telegram-tdlib").unwrap().as_os_str().to_str().unwrap());
+        let out_file_path = self.cycle.config().output_dir().join(path.strip_prefix("./template/rust-tdlib").unwrap().as_os_str().to_str().unwrap());
         self.cycle.renderer().render(file_path,
                                          out_file_path,
                                          context);
@@ -75,7 +75,7 @@ impl<'a> TGClient<'a> {
       if tknwrap.is_skip_type(token.name()) { continue }
       let file_name = tknwrap.which_file(token.name());
       context.insert("token", token);
-      self.cycle.renderer().render("telegram-tdlib/types/td_type.rs",
+      self.cycle.renderer().render("rust-tdlib/types/td_type.rs",
                                    self.cycle.config().output_dir().join(&format!("types/{}.rs", file_name)[..]),
                                    &mut context);
     }

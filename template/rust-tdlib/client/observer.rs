@@ -4,10 +4,10 @@ use futures::channel::oneshot;
 use crate::types::{RObject, TdType};
 
 lazy_static! {
-  pub static ref OBSERVER: Observer = Observer::new();
+  pub(super) static ref OBSERVER: Observer = Observer::new();
 }
 
-pub struct Observer {
+pub(super) struct Observer {
   channels: RwLock<HashMap<String, oneshot::Sender<TdType>>>,
 }
 

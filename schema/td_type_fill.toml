@@ -18,7 +18,7 @@ Vector = "Vec"
 [filter.ProfilePhoto]
 [filter.ProfilePhoto.id]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -36,7 +36,7 @@ reason = "May be not sent"
 [filter.Chat]
 [filter.Chat.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -54,7 +54,7 @@ reason = "May be not sent"
 [filter.Message]
 [filter.Message.media_album_id]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -67,7 +67,7 @@ sample
 [filter.UpdateChatLastMessage]
 [filter.UpdateChatLastMessage.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -84,7 +84,7 @@ reason = "May be not sent"
 [filter.Poll]
 [filter.Poll.id]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -96,7 +96,7 @@ sample
 [filter.Sticker]
 [filter.Sticker.set_id]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -108,7 +108,7 @@ sample
 [filter.SupergroupFullInfo]
 [filter.SupergroupFullInfo.sticker_set_id]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -120,7 +120,7 @@ sample
 [filter.ChatPosition]
 [filter.ChatPosition.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -132,7 +132,7 @@ the master branch of td, not have order field in  UpdateChatDraftMessage, It's C
 [filter.UpdateChatDraftMessage]
 [filter.UpdateChatDraftMessage.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -144,7 +144,7 @@ the master branch of td, not have order field in  UpdateChatDraftMessage, It's C
 [filter.UpdateChatIsPinned]
 [filter.UpdateChatIsPinned.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -156,7 +156,7 @@ the master branch of td, not have UpdateChatIsPinned
 [filter.UpdateChatIsSponsored]
 [filter.UpdateChatIsSponsored.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """
@@ -168,7 +168,7 @@ the master branch of td, not have UpdateChatIsSponsored
 [filter.UpdateChatOrder]
 [filter.UpdateChatOrder.order]
 macros = [
-  """#[serde(deserialize_with = "serde_aux::field_attributes::deserialize_number_from_string")]"""
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
 ]
 optional = false
 reason = """

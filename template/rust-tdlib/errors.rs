@@ -28,7 +28,7 @@ impl error::Error for RTDError {
       RTDError::Io(ref err) => Some(err),
       RTDError::SerdeJson(ref err) => Some(err),
       RTDError::Internal(_) => None,
-      RTDError::TdlibError(err) => {None}
+      RTDError::TdlibError(_) => {None}
     }
   }
 }

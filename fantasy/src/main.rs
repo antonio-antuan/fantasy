@@ -35,8 +35,8 @@ fn main() {
   let tdtypefill = tdfill::TDTypeFill::new(project_path.join("schema/td_type_fill.toml")).unwrap();
 
   let config: Config = Config::builder()
-    .template_path(project_path.join("template/telegram-tdlib"))
-    .output_dir("/home/anton/Projects/telegram-tdlib/src")
+    .template_path(project_path.join("template/rust-tdlib"))
+    .output_dir("/home/anton/Projects/rust-tdlib/src")
     .file_tl(project_path.join("schema/v1.6.0/td_api.tl"))
     .build();
 

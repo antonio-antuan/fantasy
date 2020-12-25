@@ -1,10 +1,13 @@
-
-pub use self::_common::{
-  RObject,
-  RFunction,
-  from_json,
-  TdType,
+pub use self::{
+  _common::{
+    RObject,
+    RFunction,
+    TdType,
+  },
 };
+
+#[allow(dead_code, unused_imports)]
+pub(crate) use self::_common::from_json;
 
 #[macro_use] mod _common;
 

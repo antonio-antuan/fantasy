@@ -1,9 +1,15 @@
-use std::fmt::Debug;
+use std::{
+  fmt::{Debug, Display},
+  str::FromStr
+};
 
 use serde::de::{Deserialize, Deserializer};
 
-use crate::errors::*;
-use crate::types::*;
+use crate::{
+  errors::*,
+  types::*
+};
+use serde::de;
 
 macro_rules! rtd_enum_deserialize {
   ($type_name:ident, $(($td_name:ident, $enum_item:ident));*;) => {
@@ -40,9 +46,9 @@ macro_rules! rtd_enum_deserialize {
   }
 }
 
-
+#[allow(dead_code)]
 pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deserialize<'a>, {
-  Ok(serde_json::from_str(json.as_ref())?)
+  Ok(serde_json::from_str(json)?)
 }
 
 /// All tdlib type abstract class defined the same behavior
@@ -125,3 +131,11 @@ mod tests {
   }
 }
 
+pub(super) fn number_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where T: FromStr,
+          T::Err: Display,
+          D: Deserializer<'de>
+{
+    let s = String::deserialize(deserializer)?;
+    T::from_str(&s).map_err(de::Error::custom)
+}

@@ -1,15 +1,16 @@
 #[macro_use]
 extern crate serde_derive;
 
+#[cfg(feature = "client")]
 #[macro_use]
 extern crate log;
 
+#[cfg(feature = "client")]
 #[macro_use]
 extern crate lazy_static;
 
 
-pub(crate) use rtdlib_sys::Tdlib;
-
+#[cfg(feature = "client")]
 pub mod client;
 
 pub mod types;
