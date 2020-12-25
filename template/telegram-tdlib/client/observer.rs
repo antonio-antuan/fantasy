@@ -25,38 +25,38 @@ impl Observer {
 {% endif %}{% endfor %}
       _ => {None}
     };
-    match extra {
-      None => Some(payload),
-      Some(extra) => {
-          let mut map = self.channels.write().unwrap();
-          match map.remove(&extra) {
-              None => {Some(payload)}
-              Some(sender) => {
-                sender.send(payload).unwrap();
-                None
-              }
-          }
-      }
+            match extra {
+            None => Some(payload),
+            Some(extra) => {
+                let mut map = self.channels.write().unwrap();
+                match map.remove(&extra) {
+                    None => Some(payload),
+                    Some(sender) => {
+                        sender.send(payload).unwrap();
+                        None
+                    }
+                }
+            }
+        }
     }
-  }
 
-  pub fn subscribe(&self, extra: &String) -> oneshot::Receiver<TdType> {
-    let (sender, receiver) = oneshot::channel::<TdType>();
-    match self.channels.write() {
-      Ok(mut map) => {
-        map.insert(extra.to_string(), sender);
-      }
-      _ => {}
-    };
-    receiver
-  }
+    pub fn subscribe(&self, extra: &String) -> oneshot::Receiver<TdType> {
+        let (sender, receiver) = oneshot::channel::<TdType>();
+        match self.channels.write() {
+            Ok(mut map) => {
+                map.insert(extra.to_string(), sender);
+            }
+            _ => {warn!("can't acquire lock for notifier map");}
+        };
+        receiver
+    }
 
-  pub fn unsubscribe(&self, extra: &String) {
-    match self.channels.write() {
-      Ok(mut map) => {
-        map.remove(extra);
-      }
-      _ => {}
-    };
-  }
+    pub fn unsubscribe(&self, extra: &String) {
+        match self.channels.write() {
+            Ok(mut map) => {
+                map.remove(extra);
+            }
+            _ => {}
+        };
+    }
 }
