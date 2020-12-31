@@ -115,14 +115,14 @@ mod tests {
   #[test]
   fn test_deserialize_enum() {
     match from_json::<UpdateAuthorizationState>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
-      Ok(t) => {},
+      Ok(_) => {},
       Err(e) => {panic!("{}", e)}
     };
 
     match from_json::<TdType>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
       Ok(t) => {
         match t {
-          TdType::UpdateAuthorizationState(v) => {},
+          TdType::UpdateAuthorizationState(_) => {},
           _ => panic!("from_json failed: {:?}", t)
         }
       },
