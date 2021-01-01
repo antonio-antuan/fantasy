@@ -109,7 +109,7 @@ where S: TdLibClient + Clone
 #[cfg(test)]
 mod tests {
     use crate::client::api::TdLibClient;
-    use crate::client::client::{Client, TypeInAuthStateHandler};
+    use crate::client::client::{Client, ConsoleAuthStateHandler};
     use crate::errors::RTDResult;
     use crate::types::{
         Chats, RFunction, RObject, SearchPublicChats, TdlibParameters, UpdateAuthorizationState,
@@ -144,8 +144,7 @@ mod tests {
             if self.to_receive.is_none() {
                 panic!("value to receive not set");
             }
-            let r = self.to_receive.clone();
-            r
+            self.to_receive.clone()
         }
 
         fn execute<Fnc: RFunction>(&self, _fnc: Fnc) -> RTDResult<Option<String>> {
@@ -180,8 +179,10 @@ mod tests {
 
         let client = Client::new(
             mocked_raw_api.clone(),
-            TypeInAuthStateHandler {},
+            ConsoleAuthStateHandler::default(),
             TdlibParameters::builder().build(),
+            None,
+            2.0
         );
 
         let (sx, _rx) = mpsc::channel::<UpdateAuthorizationState>(10);
