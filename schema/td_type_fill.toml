@@ -2,9 +2,9 @@
 [mapper]
 double = "f32"
 string = "String"
-int32 = "i64"
+int32 = "i32"
 int53 = "i64"
-int64 = "isize"
+int64 = "i64"
 bytes = "String"
 boolFalse = "bool"
 boolTrue = "bool"
@@ -104,6 +104,299 @@ https://core.telegram.org/tdlib/docs/classtd_1_1td__api_1_1sticker.html
 sample
 "sticker":{"@type":"sticker","@struct":"Sticker","set_id":"2463557141785477121", ... }
 """
+
+[filter.inputChatPhotoPrevious]
+[filter.inputChatPhotoPrevious.chat_photo_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.inlineQueryResults]
+[filter.inlineQueryResults.inline_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.optionValueInteger]
+[filter.optionValueInteger.value]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.tMeUrlTypeStickerSet]
+[filter.tMeUrlTypeStickerSet.sticker_set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.updateFileGenerationStart]
+[filter.updateFileGenerationStart.generation_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.updateNewCallbackQuery]
+[filter.updateNewCallbackQuery.chat_instance]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.updateNewInlineCallbackQuery]
+[filter.updateNewInlineCallbackQuery.chat_instance]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.updatePollAnswer]
+[filter.updatePollAnswer.poll_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.getCallbackQueryMessage]
+[filter.getCallbackQueryMessage.callback_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.getChats]
+[filter.getChats.offset_order]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.sendInlineQueryResultMessage]
+[filter.sendInlineQueryResultMessage.query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.answerInlineQuery]
+[filter.answerInlineQuery.inline_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.answerCallbackQuery]
+[filter.answerCallbackQuery.callback_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+
+[filter.answerShippingQuery]
+[filter.answerShippingQuery.shipping_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.answerPreCheckoutQuery]
+[filter.answerPreCheckoutQuery.pre_checkout_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.writeGeneratedFilePart]
+[filter.writeGeneratedFilePart.generation_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.setFileGenerationProgress]
+[filter.setFileGenerationProgress.generation_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.finishFileGeneration]
+[filter.finishFileGeneration.generation_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.discardCall]
+[filter.discardCall.connection_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.getArchivedStickerSets]
+[filter.getArchivedStickerSets.offset_sticker_set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.getStickerSet]
+[filter.getStickerSet.set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.changeStickerSet]
+[filter.changeStickerSet.set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.deleteProfilePhoto]
+[filter.deleteProfilePhoto.profile_photo_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.terminateSession]
+[filter.terminateSession.session_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.disconnectWebsite]
+[filter.disconnectWebsite.website_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+
+[filter.setSupergroupStickerSet]
+[filter.setSupergroupStickerSet.sticker_set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+
+[filter.getChatEventLog]
+[filter.getChatEventLog.from_event_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.removeBackground]
+[filter.removeBackground.background_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.answerCustomQuery]
+[filter.answerCustomQuery.custom_query_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.updateFileGenerationStop]
+[filter.updateFileGenerationStop.generation_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.inputBackgroundRemote]
+[filter.inputBackgroundRemote.background_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.chatEventStickerSetChanged]
+[filter.chatEventStickerSetChanged.old_sticker_set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+[filter.chatEventStickerSetChanged.new_sticker_set_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
+
+[filter.messageGameScore]
+[filter.messageGameScore.game_id]
+macros = [
+  """#[serde(deserialize_with = "super::_common::number_from_string")]"""
+]
+optional = false
+reason = ""
+
 
 [filter.SupergroupFullInfo]
 [filter.SupergroupFullInfo.sticker_set_id]
