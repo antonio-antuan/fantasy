@@ -8,14 +8,16 @@ pub struct {{struct_name}} {
   #[doc(hidden)]
   #[serde(rename(serialize = "@extra", deserialize = "@extra"))]
   extra: Option<String>,
+  #[serde(rename(serialize = "@client_id", deserialize = "@client_id"))]
+  client_id: Option<i32>,
   {% for field in token.arguments %}/// {{field.description}}
-  {% for macro_ in td_macros(arg=field, token=token) %}{{macro_}} {% endfor %}{% if field.sign_name == 'type' %}#[serde(rename(serialize = "type", deserialize = "type"))] {% endif %}{{field.sign_name | td_safe_field}}: {{td_arg(arg=field, token=token)}},
-  {% endfor %}
+  {% for macro_ in td_macros(arg=field, token=token) %}{{macro_}} {% endfor %}{% if field.sign_name == 'type' %}#[serde(rename(serialize = "type", deserialize = "type"))] {% endif %}{% set field_type = td_arg(arg=field, token=token) %}{% if field.sign_type == "vector" %}{% for c in field.components %}{% if c.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::vec_of_i64_from_str")]{% endif %}{% endfor %}{% elif field.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::number_from_string")]{% endif %}{{field.sign_name | td_safe_field}}: {{ field_type }},{% endfor %}
 }
 
 impl RObject for {{struct_name}} {
   #[doc(hidden)] fn td_name(&self) -> &'static str { "{{token.name}}" }
   #[doc(hidden)] fn extra(&self) -> Option<String> { self.extra.clone() }
+  #[doc(hidden)] fn client_id(&self) -> Option<i32> { self.client_id }
   fn to_json(&self) -> RTDResult<String> { Ok(serde_json::to_string(self)?) }
 }
 {% if token.blood and token.blood | to_snake != token.name | to_snake %}
@@ -30,6 +32,7 @@ impl {{struct_name}} {
     let mut inner = {{struct_name}}::default();
     inner.td_name = "{{token.name}}".to_string();
     inner.extra = Some(Uuid::new_v4().to_string());
+    inner.client_id = None;
     RTD{{struct_name}}Builder { inner }
   }
 {% for field in token.arguments %}{% set field_type = td_arg(arg=field, token=token) %}{% set is_primitive = is_primitive(type_ = field_type) %}

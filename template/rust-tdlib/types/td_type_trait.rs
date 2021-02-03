@@ -43,6 +43,13 @@ impl RObject for {{trait_name}} {
     }
   }
   fn to_json(&self) -> RTDResult<String> { Ok(serde_json::to_string(self)?) }
+#[doc(hidden)] fn client_id(&self) -> Option<i32> {
+    match self {
+{% for subt in sub_tokens(token=token) %}      {{trait_name}}::{{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}(t) => t.client_id(),
+{% endfor %}
+      _ => None,
+    }
+  }
 }
 
 impl {{trait_name}} {

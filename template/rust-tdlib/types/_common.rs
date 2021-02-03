@@ -3,7 +3,7 @@ use std::{
   str::FromStr
 };
 
-use serde::de::{Deserialize, Deserializer};
+use serde::de::{Deserialize, Deserializer, Error as SerdeError};
 
 use crate::{
   errors::*,
@@ -36,7 +36,7 @@ macro_rules! rtd_enum_deserialize {
         $(
           stringify!($td_name) => $type_name::$enum_item(match serde_json::from_value(rtd_trait_value.clone()) {
             Ok(t) => t,
-            Err(_e) => return Err(D::Error::unknown_field(stringify!("{} can't deserialize to {}::{}", $td_name, $type_name, $enum_item, _e), &[stringify!("{:?}", _e)]))
+            Err(_e) => return Err(D::Error::custom(format!("{} can't deserialize to {}::{}: {}", stringify!($td_name), stringify!($type_name), stringify!($enum_item), _e)))
           }),
         )*
         _ => return Err(D::Error::missing_field(stringify!($field)))
@@ -57,6 +57,7 @@ pub trait RObject: Debug {
   fn td_name(&self) -> &'static str;
   #[doc(hidden)]
   fn extra(&self) -> Option<String>;
+  fn client_id(&self) -> Option<i32>;
   /// Return td type to json string
   fn to_json(&self) -> RTDResult<String>;
 }
@@ -68,12 +69,14 @@ impl<'a, RObj: RObject> RObject for &'a RObj {
   fn td_name(&self) -> &'static str { (*self).td_name() }
   fn to_json(&self) -> RTDResult<String> { (*self).to_json() }
   fn extra(&self) -> Option<String> { (*self).extra() }
+  fn client_id(&self) -> Option<i32> { (*self).client_id() }
 }
 
 impl<'a, RObj: RObject> RObject for &'a mut RObj {
   fn td_name(&self) -> &'static str { (**self).td_name() }
   fn to_json(&self) -> RTDResult<String> { (**self).to_json() }
   fn extra(&self) -> Option<String> { (**self).extra() }
+  fn client_id(&self) -> Option<i32> { (**self).client_id() }
 }
 
 
@@ -104,6 +107,26 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
  )(deserializer)
 
  }
+}
+
+impl TdType {
+  pub fn client_id(&self) -> Option<i32> {
+      match self {
+{% for token in tokens %}{% if token.is_return_type %}
+          TdType::{{token.name | to_camel}}(value) => value.client_id(),
+{% endif %}{% endfor %}
+          _ => {None}
+      }
+  }
+
+    pub fn extra(&self) -> Option<String> {
+      match self {
+{% for token in tokens %}{% if token.is_return_type %}
+          TdType::{{token.name | to_camel}}(value) => value.extra(),
+{% endif %}{% endfor %}
+          _ => {None}
+      }
+  }
 }
 
 
@@ -138,4 +161,19 @@ pub(super) fn number_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Err
 {
     let s = String::deserialize(deserializer)?;
     T::from_str(&s).map_err(de::Error::custom)
+}
+
+pub fn vec_of_i64_from_str<'de, D>(deserializer: D) -> Result<Vec<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = Vec::<String>::deserialize(deserializer)?;
+    let mut r = Vec::new();
+    for v in s {
+        match v.parse::<i64>() {
+            Ok(v) => {r.push(v)}
+            Err(e) => {return Err(D::Error::custom(format!("can't deserialize to i64: {}", e)))}
+        }
+    }
+    Ok(r)
 }
