@@ -29,7 +29,7 @@ macro_rules! rtd_enum_deserialize {
           Some(s) => s,
           None => return Err(D::Error::unknown_field(stringify!("{} -> @type", $field), &[stringify!("{} -> @type is not the correct type", $type_name)])) // &format!("{} -> @type is not the correct type", stringify!($field))[..]
         },
-        None => return Err(D::Error::missing_field(stringify!("{} -> @type", $field)))
+        None => return Err(D::Error::custom("@type is empty"))
       };
 
       let obj = match rtd_trait_type {
@@ -39,7 +39,7 @@ macro_rules! rtd_enum_deserialize {
             Err(_e) => return Err(D::Error::custom(format!("{} can't deserialize to {}::{}: {}", stringify!($td_name), stringify!($type_name), stringify!($enum_item), _e)))
           }),
         )*
-        _ => return Err(D::Error::missing_field(stringify!($field)))
+        _ => return Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
       };
       Ok(obj)
     }
@@ -90,9 +90,7 @@ impl<'a, {{token.name | upper}}: TD{{token.name | to_camel}}> TD{{token.name | t
 
 #[derive(Debug, Clone)]
 pub enum TdType {
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}  {{token.name | to_camel }}({{token.name | to_camel}}),
-{% endif %}{% endfor %}
-{% for token in tokens %}{% if token.is_return_type %}  {{token.name | to_camel }}({{token.name | to_camel}}),
+{% for token in tokens %}{% if token.is_return_type %} {{token.name | to_camel }}({{token.name | to_camel}}),
 {% endif %}{% endfor %}
 }
 impl<'de> Deserialize<'de> for TdType {
@@ -100,9 +98,7 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
     use serde::de::Error;
     rtd_enum_deserialize!(
       TdType,
-{% for token in tokens %}{% if token.blood and token.blood == 'Update' %}  ({{token.name }}, {{token.name | to_camel}});
-{% endif %}{% endfor %}
-{% for token in tokens %}{% if token.is_return_type %}  ({{token.name }}, {{token.name | to_camel}});
+{% for token in tokens %}{% if token.is_return_type %}({{token.name }}, {{token.name | to_camel}});
 {% endif %}{% endfor %}
  )(deserializer)
 

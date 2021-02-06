@@ -7,8 +7,6 @@ use std::io;
 // We don't do any other magic like creating new types.
 #[derive(Debug, Fail)]
 pub enum TLError {
-  #[fail(display = "tl file not found: {}", path)]
-  TLNotfound {
-    path: String,
-  },
+    #[fail(display = "tl file not found: {}", path)]
+    TLNotfound { path: String },
 }
