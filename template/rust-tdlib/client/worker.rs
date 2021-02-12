@@ -24,6 +24,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     task::JoinHandle,
 };
+use crate::types::Update;
 
 const CLOSED_CHANNEL_ERROR: RTDError = RTDError::Internal("channel closed");
 
@@ -313,30 +314,31 @@ where
                     match from_json::<TdType>(&json) {
                         Ok(t) => match OBSERVER.notify(t) {
                             None => {}
-                            Some(t) => match t {
-                                TdType::UpdateAuthorizationState(auth_state) => {
-                                    trace!("auth state send: {:?}", auth_state);
-                                    auth_sx
-                                        .send(auth_state)
-                                        .await
-                                        .map_err(|_| CLOSED_CHANNEL_ERROR)?;
-                                    trace!("auth state sent");
-                                }
-                                _ => {
-                                    if let Some(client_id) = t.client_id() {
-                                        match clients.read().await.get(&client_id) {
-                                            None => {
-                                                warn!(
-                                                    "found updates for unavailable client ({})",
-                                                    client_id
-                                                )
-                                            }
-                                            Some((client, _)) => {
-                                                if let Some(sender) = client.updates_sender() {
-                                                    sender
-                                                        .send(Box::new(t))
-                                                        .await
-                                                        .map_err(|_| CLOSED_CHANNEL_ERROR)?;
+                            Some(t) => {
+                                if let TdType::Update(update) = t {
+                                    if let Update::AuthorizationState(auth_state) = update {
+                                        trace!("auth state send: {:?}", auth_state);
+                                            auth_sx
+                                                .send(auth_state)
+                                                .await
+                                                .map_err(|_| CLOSED_CHANNEL_ERROR)?;
+                                            trace!("auth state sent");
+                                    } else {
+                                        if let Some(client_id) = update.client_id() {
+                                            match clients.read().await.get(&client_id) {
+                                                None => {
+                                                    warn!(
+                                                        "found updates for unavailable client ({})",
+                                                        client_id
+                                                    )
+                                                }
+                                                Some((client, _)) => {
+                                                    if let Some(sender) = client.updates_sender() {
+                                                        sender
+                                                            .send(update)
+                                                            .await
+                                                            .map_err(|_| CLOSED_CHANNEL_ERROR)?;
+                                                    }
                                                 }
                                             }
                                         }
@@ -565,3 +567,4 @@ async fn handle_auth_state<A: AuthStateHandler, R: TdLibClient + Clone>(
 //             .unwrap();
 //     }
 // }
+

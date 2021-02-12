@@ -23,7 +23,6 @@ impl Observer {
 {% for token in tokens %}{% if token.is_return_type %}
           TdType::{{token.name | to_camel}}(value) => value.extra(),
 {% endif %}{% endfor %}
-          _ => {None}
       };
       match extra {
             None => {

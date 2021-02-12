@@ -3,11 +3,12 @@
 pub trait TD{{trait_name}}: Debug + RObject {}
 
 /// {{token.description}}
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag="@type")]
 pub enum {{trait_name}} {
   #[doc(hidden)] _Default(()),
 {% for subt in sub_tokens(token=token) %}  /// {{subt.description}}
+  #[serde(rename(deserialize = "{{subt.name}}"))]
   {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}({{subt.name | to_camel}}),
 {% endfor %}
 }
@@ -16,25 +17,7 @@ impl Default for {{trait_name}} {
   fn default() -> Self { {{trait_name}}::_Default(()) }
 }
 
-impl<'de> Deserialize<'de> for {{trait_name}} {
-  fn deserialize<D>(deserializer: D) -> Result<{{trait_name}}, D::Error> where D: Deserializer<'de> {
-    use serde::de::Error;
-    rtd_enum_deserialize!(
-      {{trait_name}},
-{% for subt in sub_tokens(token=token) %}      ({{subt.name}}, {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}});
-{% endfor %}
-    )(deserializer)
-  }
-}
-
 impl RObject for {{trait_name}} {
-  #[doc(hidden)] fn td_name(&self) -> &'static str {
-    match self {
-{% for subt in sub_tokens(token=token) %}      {{trait_name}}::{{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}(t) => t.td_name(),
-{% endfor %}
-      _ => "-1",
-    }
-  }
   #[doc(hidden)] fn extra(&self) -> Option<String> {
     match self {
 {% for subt in sub_tokens(token=token) %}      {{trait_name}}::{{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}(t) => t.extra(),
@@ -42,7 +25,6 @@ impl RObject for {{trait_name}} {
       _ => None,
     }
   }
-  fn to_json(&self) -> RTDResult<String> { Ok(serde_json::to_string(self)?) }
 #[doc(hidden)] fn client_id(&self) -> Option<i32> {
     match self {
 {% for subt in sub_tokens(token=token) %}      {{trait_name}}::{{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}(t) => t.client_id(),

@@ -9,42 +9,7 @@ use crate::{
   errors::*,
   types::*
 };
-use serde::de;
-
-macro_rules! rtd_enum_deserialize {
-  ($type_name:ident, $(($td_name:ident, $enum_item:ident));*;) => {
-    // example json
-    // {"@type":"authorizationStateWaitEncryptionKey","is_encrypted":false}
-    |deserializer: D| -> Result<$type_name, D::Error> {
-      let rtd_trait_value: serde_json::Value = Deserialize::deserialize(deserializer)?;
-      // the `rtd_trait_value` variable type is &serde_json::Value, tdlib trait will return a object, convert this type to object `&Map<String, Value>`
-      let rtd_trait_map = match rtd_trait_value.as_object() {
-        Some(map) => map,
-        None => return Err(D::Error::unknown_field(stringify!($type_name), &[stringify!("{} is not the correct type", $type_name)])) // &format!("{} is not the correct type", stringify!($field))[..]
-      };
-      // get `@type` value, detect specific types
-      let rtd_trait_type = match rtd_trait_map.get("@type") {
-        // the `t` variable type is `serde_json::Value`, convert `t` to str
-        Some(t) => match t.as_str() {
-          Some(s) => s,
-          None => return Err(D::Error::unknown_field(stringify!("{} -> @type", $field), &[stringify!("{} -> @type is not the correct type", $type_name)])) // &format!("{} -> @type is not the correct type", stringify!($field))[..]
-        },
-        None => return Err(D::Error::custom("@type is empty"))
-      };
-
-      let obj = match rtd_trait_type {
-        $(
-          stringify!($td_name) => $type_name::$enum_item(match serde_json::from_value(rtd_trait_value.clone()) {
-            Ok(t) => t,
-            Err(_e) => return Err(D::Error::custom(format!("{} can't deserialize to {}::{}: {}", stringify!($td_name), stringify!($type_name), stringify!($enum_item), _e)))
-          }),
-        )*
-        _ => return Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
-      };
-      Ok(obj)
-    }
-  }
-}
+use serde::{de, Serialize};
 
 #[allow(dead_code)]
 pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deserialize<'a>, {
@@ -54,27 +19,23 @@ pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deser
 /// All tdlib type abstract class defined the same behavior
 pub trait RObject: Debug {
   #[doc(hidden)]
-  fn td_name(&self) -> &'static str;
-  #[doc(hidden)]
   fn extra(&self) -> Option<String>;
   fn client_id(&self) -> Option<i32>;
-  /// Return td type to json string
-  fn to_json(&self) -> RTDResult<String>;
 }
 
-pub trait RFunction: Debug + RObject {}
+pub trait RFunction: Debug + RObject + Serialize {
+  fn to_json(&self) -> RTDResult<String> {
+      Ok(serde_json::to_string(self)?)
+  }
+}
 
 
 impl<'a, RObj: RObject> RObject for &'a RObj {
-  fn td_name(&self) -> &'static str { (*self).td_name() }
-  fn to_json(&self) -> RTDResult<String> { (*self).to_json() }
   fn extra(&self) -> Option<String> { (*self).extra() }
   fn client_id(&self) -> Option<i32> { (*self).client_id() }
 }
 
 impl<'a, RObj: RObject> RObject for &'a mut RObj {
-  fn td_name(&self) -> &'static str { (**self).td_name() }
-  fn to_json(&self) -> RTDResult<String> { (**self).to_json() }
   fn extra(&self) -> Option<String> { (**self).extra() }
   fn client_id(&self) -> Option<i32> { (**self).client_id() }
 }
@@ -96,12 +57,43 @@ pub enum TdType {
 impl<'de> Deserialize<'de> for TdType {
 fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserializer<'de> {
     use serde::de::Error;
-    rtd_enum_deserialize!(
-      TdType,
-{% for token in tokens %}{% if token.is_return_type %}({{token.name }}, {{token.name | to_camel}});
-{% endif %}{% endfor %}
- )(deserializer)
+    let rtd_trait_value: serde_json::Value = Deserialize::deserialize(deserializer)?;
 
+    let rtd_trait_map = match rtd_trait_value.as_object() {
+        Some(map) => map,
+        None => return Err(D::Error::unknown_field(stringify!( TdType ), &[stringify!( "{} is not the correct type" , TdType )]))
+    };
+
+    let rtd_trait_type = match rtd_trait_map.get("@type") {
+        Some(t) => match t.as_str() {
+            Some(s) => s,
+            None => return Err(D::Error::unknown_field(stringify!( "{} -> @type" , $field ), &[stringify!( "{} -> @type is not the correct type" , TdType )]))
+        },
+        None => return Err(D::Error::custom("@type is empty"))
+    };
+
+    let obj = match rtd_trait_type {
+      {% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}{% for subt in sub_tokens(token=token) %}
+
+      "{{subt.name}}" => TdType::{{token.name | to_camel}}(
+          serde_json::from_value(
+              rtd_trait_value.clone()
+          ).map_err(|e|
+              D::Error::custom(format!("{{subt.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
+          )?
+      ),
+      {% endfor %}{% elif token.is_return_type %}
+      "{{token.name}}" => TdType::{{token.name | to_camel}}(
+          serde_json::from_value(
+              rtd_trait_value.clone()
+          ).map_err(|e|
+              D::Error::custom(format!("{{token.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
+          )?
+      ),
+      {% endif %}{% endfor %}
+      _ => return Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
+    };
+    Ok(obj)
  }
 }
 
@@ -111,7 +103,6 @@ impl TdType {
 {% for token in tokens %}{% if token.is_return_type %}
           TdType::{{token.name | to_camel}}(value) => value.client_id(),
 {% endif %}{% endfor %}
-          _ => {None}
       }
   }
 
@@ -120,33 +111,7 @@ impl TdType {
 {% for token in tokens %}{% if token.is_return_type %}
           TdType::{{token.name | to_camel}}(value) => value.extra(),
 {% endif %}{% endfor %}
-          _ => {None}
       }
-  }
-}
-
-
-
-#[cfg(test)]
-mod tests {
-  use crate::types::{TdType, from_json, UpdateAuthorizationState};
-
-  #[test]
-  fn test_deserialize_enum() {
-    match from_json::<UpdateAuthorizationState>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
-      Ok(_) => {},
-      Err(e) => {panic!("{}", e)}
-    };
-
-    match from_json::<TdType>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
-      Ok(t) => {
-        match t {
-          TdType::UpdateAuthorizationState(_) => {},
-          _ => panic!("from_json failed: {:?}", t)
-        }
-      },
-      Err(e) => {panic!("{}", e)}
-    };
   }
 }
 
@@ -172,4 +137,33 @@ where
         }
     }
     Ok(r)
+}
+
+
+
+#[cfg(test)]
+mod tests {
+  use crate::types::{TdType, from_json, UpdateAuthorizationState, AuthorizationState, Update};
+
+  #[test]
+  fn test_deserialize_enum() {
+    match from_json::<UpdateAuthorizationState>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
+      Ok(_) => {},
+      Err(e) => {panic!("{}", e)}
+    };
+
+    match from_json::<TdType>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
+      Ok(t) => {
+        match t {
+          TdType::Update(Update::AuthorizationState(state)) => {
+              match state.authorization_state() {
+                  AuthorizationState::WaitTdlibParameters(_) => {}
+                  _ => {panic!("invalid serialized data")}
+              }},
+          _ => panic!("from_json failed: {:?}", t)
+        }
+      },
+      Err(e) => {panic!("{}", e)}
+    };
+  }
 }

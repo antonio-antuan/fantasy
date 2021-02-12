@@ -66,7 +66,7 @@ where
 {
     raw_api: S,
     client_id: Option<i32>,
-    updates_sender: Option<mpsc::Sender<Box<TdType>>>,
+    updates_sender: Option<mpsc::Sender<Update>>,
     tdlib_parameters: TdlibParameters,
 }
 
@@ -95,7 +95,7 @@ where
         }
     }
 
-    pub(crate) fn updates_sender(&self) -> &Option<mpsc::Sender<Box<TdType>>> {
+    pub(crate) fn updates_sender(&self) -> &Option<mpsc::Sender<Update>> {
         &self.updates_sender
     }
 }
@@ -105,7 +105,7 @@ pub struct ClientBuilder<R>
 where
     R: TdLibClient + Clone,
 {
-    updates_sender: Option<mpsc::Sender<Box<TdType>>>,
+    updates_sender: Option<mpsc::Sender<Update>>,
     tdlib_parameters: Option<TdlibParameters>,
     tdjson: R,
 }
@@ -124,7 +124,7 @@ impl<R> ClientBuilder<R>
 where
     R: TdLibClient + Clone,
 {
-    pub fn with_updates_sender(mut self, updates_sender: mpsc::Sender<Box<TdType>>) -> Self {
+    pub fn with_updates_sender(mut self, updates_sender: mpsc::Sender<Update>) -> Self {
         self.updates_sender = Some(updates_sender);
         self
     }
@@ -171,7 +171,7 @@ where
 {
     pub fn new(
         raw_api: R,
-        updates_sender: Option<mpsc::Sender<Box<TdType>>>,
+        updates_sender: Option<mpsc::Sender<Update>>,
         tdlib_parameters: TdlibParameters,
     ) -> Self {
         Self {
