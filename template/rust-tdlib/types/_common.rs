@@ -72,12 +72,12 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
         None => return Err(D::Error::custom("@type is empty"))
     };
 
-    let obj = match rtd_trait_type {
+    Ok(match rtd_trait_type {
       {% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}{% for subt in sub_tokens(token=token) %}
 
       "{{subt.name}}" => TdType::{{token.name | to_camel}}(
           serde_json::from_value(
-              rtd_trait_value.clone()
+              rtd_trait_value
           ).map_err(|e|
               D::Error::custom(format!("{{subt.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
           )?
@@ -85,15 +85,14 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
       {% endfor %}{% elif token.is_return_type %}
       "{{token.name}}" => TdType::{{token.name | to_camel}}(
           serde_json::from_value(
-              rtd_trait_value.clone()
+              rtd_trait_value
           ).map_err(|e|
               D::Error::custom(format!("{{token.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
           )?
       ),
       {% endif %}{% endfor %}
       _ => return Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
-    };
-    Ok(obj)
+    })
  }
 }
 
