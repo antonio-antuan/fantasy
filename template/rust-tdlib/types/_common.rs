@@ -71,30 +71,48 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
         },
         None => return Err(D::Error::custom("@type is empty"))
     };
-
-    Ok(match rtd_trait_type {
-      {% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}{% for subt in sub_tokens(token=token) %}
-
-      "{{subt.name}}" => TdType::{{token.name | to_camel}}(
-          serde_json::from_value(
-              rtd_trait_value
-          ).map_err(|e|
-              D::Error::custom(format!("{{subt.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
-          )?
-      ),
-      {% endfor %}{% elif token.is_return_type %}
-      "{{token.name}}" => TdType::{{token.name | to_camel}}(
-          serde_json::from_value(
-              rtd_trait_value
-          ).map_err(|e|
-              D::Error::custom(format!("{{token.name | to_camel}} deserialize to TdType::{{token.name | to_camel}} with error: {}", e))
-          )?
-      ),
-      {% endif %}{% endfor %}
-      _ => return Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
-    })
+    if let Some(t) = deserialize_traits(rtd_trait_type, rtd_trait_value.clone()).map_err(|err|D::Error::custom(format!("can't deserialize for {} with error: {}", rtd_trait_type, err)))? {
+      return Ok(t)
+    };
+    if let Some(t) = deserialize_direct_types(rtd_trait_type, rtd_trait_value.clone()).map_err(|err|D::Error::custom(format!("can't deserialize for {} with error: {}", rtd_trait_type, err)))? {
+      return Ok(t)
+    }
+    return  Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
  }
 }
+
+fn deserialize_traits(rtd_trait_type: &str, rtd_trait_value: serde_json::Value) -> Result<Option<TdType>, serde_json::Error> {
+  {% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}
+    if let Some(td_type) = deserialize_{{token.name | to_snake}}(rtd_trait_type, rtd_trait_value.clone())? {
+      return Ok(Some(td_type))
+    };
+    {% endif %}
+    {% endfor %}
+    Ok(None)
+}
+
+fn deserialize_direct_types(rtd_trait_type: &str, rtd_trait_value: serde_json::Value) -> Result<Option<TdType>, serde_json::Error> {
+  Ok(match rtd_trait_type { {% for token in tokens %}{% if token.is_return_type and token.type_ != "Trait" %}
+  "{{token.name}}" => Some(TdType::{{token.name | to_camel}}(
+          serde_json::from_value(
+              rtd_trait_value.clone()
+          )?
+      )),{% endif %}{% endfor %}
+      _ => None
+    })
+}
+
+{% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}
+const {{token.name | to_upper}}_MEMBERS: &'static [&'static str] = &[{% for subt in sub_tokens(token = token) %}"{{subt.name}}", {% endfor %}];
+
+  fn deserialize_{{ token.name | to_snake }}(rtd_trait_type: &str, rtd_trait_value: serde_json::Value) -> Result<Option<TdType>, serde_json::Error> {
+    Ok(match {{token.name | to_camel}}_MEMBERS.contains(&rtd_trait_type) {
+      true => Some(TdType::{{token.name | to_camel}}(serde_json::from_value(rtd_trait_value)?)),
+      false => None
+    })
+}
+{% endif %}
+{% endfor %}
 
 impl TdType {
   pub fn client_id(&self) -> Option<i32> {
@@ -138,31 +156,48 @@ where
     Ok(r)
 }
 
-
-
 #[cfg(test)]
 mod tests {
-  use crate::types::{TdType, from_json, UpdateAuthorizationState, AuthorizationState, Update};
+    use crate::types::_common::deserialize_update;
+    use crate::types::{from_json, AuthorizationState, TdType, Update, UpdateAuthorizationState};
 
-  #[test]
-  fn test_deserialize_enum() {
-    match from_json::<UpdateAuthorizationState>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
-      Ok(_) => {},
-      Err(e) => {panic!("{}", e)}
-    };
+    #[test]
+    fn test_deserialize_enums() {
+        match deserialize_update(
+            "updateAuthorizationState", serde_json::from_str::<serde_json::Value>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#).unwrap(),
+        ) {
+            Ok(v) => {match v {
+                Some(v) => {
+                    match v {
+                        TdType::Update(_) => {},
 
-    match from_json::<TdType>(r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#) {
-      Ok(t) => {
-        match t {
-          TdType::Update(Update::AuthorizationState(state)) => {
-              match state.authorization_state() {
-                  AuthorizationState::WaitTdlibParameters(_) => {}
-                  _ => {panic!("invalid serialized data")}
-              }},
-          _ => panic!("from_json failed: {:?}", t)
-        }
-      },
-      Err(e) => {panic!("{}", e)}
-    };
-  }
+                        _ => {panic!("serialization failed")},
+                    }
+                },
+                None => panic!("serialization failed")
+            }}
+            Err(e) => {
+                panic!("{}", e)
+            }
+        };
+
+        match from_json::<TdType>(
+            r#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitTdlibParameters"}}"#,
+        ) {
+            Ok(t) => match t {
+                TdType::Update(Update::AuthorizationState(state)) => {
+                    match state.authorization_state() {
+                        AuthorizationState::WaitTdlibParameters(_) => {}
+                        _ => {
+                            panic!("invalid serialized data")
+                        }
+                    }
+                }
+                _ => panic!("from_json failed: {:?}", t),
+            },
+            Err(e) => {
+                panic!("{}", e)
+            }
+        };
+    }
 }

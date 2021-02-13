@@ -157,8 +157,7 @@ where
     }
 }
 
-impl Client<RawApi>
-{
+impl Client<RawApi> {
     pub fn builder() -> ClientBuilder<RawApi> {
         ClientBuilder::default()
     }

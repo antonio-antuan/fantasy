@@ -26,6 +26,13 @@ fn add_filter_case(tera: &mut Tera) -> Result<(), failure::Error> {
             None => Err(format!("Error value {:?}", value).into()),
         }
     }
+
+    fn case_to_upper_filter(value: Value, arg: HashMap<String, Value>) -> tera::Result<Value> {
+        match value.as_str() {
+            Some(text) => Ok(serde_json::value::to_value(text.to_uppercase()).unwrap()),
+            None => Err(format!("Error value {:?}", value).into()),
+        }
+    }
     fn case_to_camel(value: Value, arg: HashMap<String, Value>) -> tera::Result<Value> {
         match value.as_str() {
             Some(text) => Ok(serde_json::value::to_value(text.to_camel()).unwrap()),
@@ -58,6 +65,7 @@ fn add_filter_case(tera: &mut Tera) -> Result<(), failure::Error> {
     }
     //  fn case_to
     tera.register_filter("to_snake", case_to_snake_filter);
+    tera.register_filter("to_upper", case_to_upper_filter);
     tera.register_filter("to_camel", case_to_camel);
     tera.register_filter("to_camel_lowercase", case_to_camel_lowercase);
     tera.register_filter("is_skip_type", is_skip_type);
