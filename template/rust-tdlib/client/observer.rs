@@ -1,44 +1,42 @@
-use std::sync::RwLock;
-use std::collections::HashMap;
+use crate::types::TdType;
 use futures::channel::oneshot;
-use crate::types::{RObject, TdType};
+use std::collections::HashMap;
+#[doc(hidden)]
+use std::sync::RwLock;
 
 lazy_static! {
-  pub(super) static ref OBSERVER: Observer = Observer::new();
+    pub(super) static ref OBSERVER: Observer = Observer::new();
 }
 
 pub(super) struct Observer {
-  channels: RwLock<HashMap<String, oneshot::Sender<TdType>>>,
+    channels: RwLock<HashMap<String, oneshot::Sender<TdType>>>,
 }
 
 impl Observer {
-  fn new() -> Self {
-    Self {
-      channels: RwLock::new(HashMap::new())
+    fn new() -> Self {
+        Self {
+            channels: RwLock::new(HashMap::new()),
+        }
     }
-  }
 
-  pub fn notify(&self, payload: TdType) -> Option<TdType> {
-      let extra = match &payload {
-{% for token in tokens %}{% if token.is_return_type %}
-          TdType::{{token.name | to_camel}}(value) => value.extra(),
-{% endif %}{% endfor %}
-      };
-      match extra {
+    pub fn notify(&self, payload: TdType) -> Option<TdType> {
+        match payload.extra() {
             None => {
                 trace!("no extra for payload {:?}", payload);
                 Some(payload)
             }
             Some(extra) => {
                 let mut map = self.channels.write().unwrap();
-                match map.remove(&extra) {
+                match map.remove(extra) {
                     None => {
                         trace!("no subscribers for {}", extra);
                         Some(payload)
                     }
                     Some(sender) => {
                         trace!("signal send for {}", extra);
-                        sender.send(payload).unwrap();
+                        if let Err(t) = sender.send(payload) {
+                            warn!("request already closed, received update: {:?}", t)
+                        };
                         None
                     }
                 }
@@ -67,4 +65,3 @@ impl Observer {
         };
     }
 }
-

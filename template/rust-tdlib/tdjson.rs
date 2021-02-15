@@ -1,6 +1,6 @@
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::os::raw::{c_char, c_double, c_int};
+use std::os::raw::{c_char, c_double, c_int, c_long};
 
 pub type ClientId = i32;
 #[link(name = "tdjson")]
@@ -9,7 +9,13 @@ extern "C" {
     fn td_send(client_id: c_int, request: *const c_char);
     fn td_receive(timeout: c_double) -> *const c_char;
     fn td_execute(request: *const c_char) -> *const c_char;
+
+    // Deprecated. Use setLogVerbosityLevel request instead.
     fn td_set_log_verbosity_level(level: c_int);
+    // Deprecated. Use setLogStream request instead.
+    fn td_set_log_file_path(path: *const c_char) -> c_int;
+    // Deprecated. Use setLogStream request instead.
+    fn td_set_log_max_file_size(size: c_long);
 }
 
 pub fn new_client() -> ClientId {
@@ -19,11 +25,6 @@ pub fn new_client() -> ClientId {
 pub fn send(client_id: ClientId, request: &str) {
     let cstring = CString::new(request).unwrap();
     unsafe { td_send(client_id, cstring.as_ptr()) }
-}
-
-// TODO: legacy docs
-pub fn set_log_verbosity_level<'a>(level: i32) {
-    unsafe { td_set_log_verbosity_level(level) };
 }
 
 pub fn execute(request: &str) -> Option<String> {
@@ -46,4 +47,24 @@ pub fn receive(timeout: f64) -> Option<String> {
             Some(contents) => Some(contents),
         }
     }
+}
+
+// Deprecated. Use setLogVerbosityLevel request instead.
+pub fn set_log_verbosity_level<'a>(level: i32) {
+    unsafe { td_set_log_verbosity_level(level) };
+}
+
+// Deprecated. Use setLogStream request instead.
+pub fn set_log_file_path(path: Option<&str>) -> bool {
+  let res = unsafe {td_set_log_file_path(path)};
+  match res {
+    1 => true,
+    0 => false,
+    _ => panic!("unexpected tdlib result: {:?}", res)
+  }
+}
+
+// Deprecated. Use setLogStream request instead.
+pub fn set_log_max_file_size(size: i64) {
+  unsafe { td_set_log_max_file_size(size as c_long) };
 }

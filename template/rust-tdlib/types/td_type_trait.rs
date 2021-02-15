@@ -18,7 +18,7 @@ impl Default for {{trait_name}} {
 }
 
 impl RObject for {{trait_name}} {
-  #[doc(hidden)] fn extra(&self) -> Option<String> {
+  #[doc(hidden)] fn extra(&self) -> Option<&str> {
     match self {
 {% for subt in sub_tokens(token=token) %}      {{trait_name}}::{{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}(t) => t.extra(),
 {% endfor %}

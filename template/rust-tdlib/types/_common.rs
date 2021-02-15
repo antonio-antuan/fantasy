@@ -19,7 +19,7 @@ pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deser
 /// All tdlib type abstract class defined the same behavior
 pub trait RObject: Debug {
   #[doc(hidden)]
-  fn extra(&self) -> Option<String>;
+  fn extra(&self) -> Option<&str>;
   fn client_id(&self) -> Option<i32>;
 }
 
@@ -31,12 +31,12 @@ pub trait RFunction: Debug + RObject + Serialize {
 
 
 impl<'a, RObj: RObject> RObject for &'a RObj {
-  fn extra(&self) -> Option<String> { (*self).extra() }
+  fn extra(&self) -> Option<&str> { (*self).extra() }
   fn client_id(&self) -> Option<i32> { (*self).client_id() }
 }
 
 impl<'a, RObj: RObject> RObject for &'a mut RObj {
-  fn extra(&self) -> Option<String> { (**self).extra() }
+  fn extra(&self) -> Option<&str> { (**self).extra() }
   fn client_id(&self) -> Option<i32> { (**self).client_id() }
 }
 
@@ -50,7 +50,7 @@ impl<'a, {{token.name | upper}}: TD{{token.name | to_camel}}> TD{{token.name | t
 {% endif %}{% endfor %}
 
 #[derive(Debug, Clone)]
-pub enum TdType {
+pub(crate) enum TdType {
 {% for token in tokens %}{% if token.is_return_type %} {{token.name | to_camel }}({{token.name | to_camel}}),
 {% endif %}{% endfor %}
 }
@@ -106,7 +106,7 @@ fn deserialize_direct_types(rtd_trait_type: &str, rtd_trait_value: serde_json::V
 const {{token.name | to_upper}}_MEMBERS: &'static [&'static str] = &[{% for subt in sub_tokens(token = token) %}"{{subt.name}}", {% endfor %}];
 
   fn deserialize_{{ token.name | to_snake }}(rtd_trait_type: &str, rtd_trait_value: serde_json::Value) -> Result<Option<TdType>, serde_json::Error> {
-    Ok(match {{token.name | to_camel}}_MEMBERS.contains(&rtd_trait_type) {
+    Ok(match {{token.name | to_upper}}_MEMBERS.contains(&rtd_trait_type) {
       true => Some(TdType::{{token.name | to_camel}}(serde_json::from_value(rtd_trait_value)?)),
       false => None
     })
@@ -115,15 +115,7 @@ const {{token.name | to_upper}}_MEMBERS: &'static [&'static str] = &[{% for subt
 {% endfor %}
 
 impl TdType {
-  pub fn client_id(&self) -> Option<i32> {
-      match self {
-{% for token in tokens %}{% if token.is_return_type %}
-          TdType::{{token.name | to_camel}}(value) => value.client_id(),
-{% endif %}{% endfor %}
-      }
-  }
-
-    pub fn extra(&self) -> Option<String> {
+    pub fn extra(&self) -> Option<&str> {
       match self {
 {% for token in tokens %}{% if token.is_return_type %}
           TdType::{{token.name | to_camel}}(value) => value.extra(),

@@ -16,7 +16,7 @@ pub struct {{struct_name}} {
 }
 
 impl RObject for {{struct_name}} {
-  #[doc(hidden)] fn extra(&self) -> Option<String> { self.extra.clone() }
+  #[doc(hidden)] fn extra(&self) -> Option<&str> { self.extra.as_ref().map(|v| v.as_str()) }
   #[doc(hidden)] fn client_id(&self) -> Option<i32> { self.client_id }
 }
 {% if token.blood and token.blood | to_snake != token.name | to_snake %}

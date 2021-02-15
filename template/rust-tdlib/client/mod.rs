@@ -7,7 +7,6 @@ pub mod client;
 #[allow(clippy::module_inception)]
 /// Handlers for all incoming data
 pub mod worker;
-pub mod errors;
 
 pub use client::Client;
-pub use worker::{AuthStateHandler, ConsoleAuthStateHandler, WorkerBuilder, Worker};
+pub use worker::{AuthStateHandler, ConsoleAuthStateHandler, Worker, WorkerBuilder};

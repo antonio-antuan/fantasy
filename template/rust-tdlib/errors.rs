@@ -25,7 +25,7 @@ impl fmt::Display for RTDError {
             }
             RTDError::Internal(err) => {
                 write!(f, "{}", err)
-            },
+            }
             RTDError::BadRequest(err) => {
                 write!(f, "{}", err)
             }
@@ -54,5 +54,19 @@ impl From<io::Error> for RTDError {
 impl From<serde_json::Error> for RTDError {
     fn from(err: serde_json::Error) -> RTDError {
         RTDError::SerdeJson(err)
+    }
+}
+
+
+const CLOSED_CHANNEL_ERROR: RTDError = RTDError::Internal("channel closed");
+const SEND_TO_CHANNEL_TIMEOUT: RTDError = RTDError::Internal("timeout for mpsc occurred");
+
+
+impl<T> From<tokio::sync::mpsc::error::SendTimeoutError<T>> for RTDError {
+    fn from(err: tokio::sync::mpsc::error::SendTimeoutError<T>) -> Self {
+        match err {
+            tokio::sync::mpsc::error::SendTimeoutError::Timeout(_) => {SEND_TO_CHANNEL_TIMEOUT}
+            tokio::sync::mpsc::error::SendTimeoutError::Closed(_) => {CLOSED_CHANNEL_ERROR}
+        }
     }
 }
