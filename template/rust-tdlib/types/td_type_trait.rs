@@ -1,5 +1,5 @@
 {% set trait_name = token.name | to_camel %}
-/// TRAIT | {{token.description}}
+/// {{token.description}}
 pub trait TD{{trait_name}}: Debug + RObject {}
 
 /// {{token.description}}

@@ -4,10 +4,13 @@ use super::{
 };
 use crate::{
     errors::{RTDError, RTDResult},
-    tdjson,
     types::*,
 };
 use tokio::sync::mpsc;
+
+const CLOSED_RECEIVER_ERROR: RTDError = RTDError::Internal("receiver already closed");
+const INVALID_RESPONSE_ERROR: RTDError = RTDError::Internal("receive invalid response");
+const NO_EXTRA: RTDError = RTDError::Internal("invalid tdlib response type, not have `extra` field");
 
 
 /// Represents state of particular client instance.
@@ -158,118 +161,22 @@ where
   // {{ token.description }}
   pub async fn {{token.name | to_snake}}<C: AsRef<{{token.name | to_camel}}>>(&self, {{token.name | to_snake}}: C) -> RTDResult<{{token.blood | to_camel}}> {
     let extra = {{token.name | to_snake }}.as_ref().extra()
-      .ok_or(RTDError::Internal("invalid tdlib response type, not have `extra` field"))?;
+      .ok_or(NO_EXTRA)?;
     let signal = OBSERVER.subscribe(&extra);
     self.tdlib_client.send(self.get_client_id()?, {{token.name | to_snake }}.as_ref())?;
     let received = signal.await;
     OBSERVER.unsubscribe(&extra);
     match received {
-      Err(_) => {Err(RTDError::Internal("receiver already closed"))}
+      Err(_) => {Err(CLOSED_RECEIVER_ERROR)}
       Ok(v) => match v {
         TdType::{{token.blood | to_camel}}(v) => { Ok(v) }
         {% if token.blood != "Error" %}TdType::Error(v) => { Err(RTDError::TdlibError(v.message().clone())) }{% endif %}
         _ => {
-          error!("invalid response received: {:?}", v);
-          Err(RTDError::Internal("receive invalid response"))
+          log::error!("invalid response received: {:?}", v);
+          Err(INVALID_RESPONSE_ERROR)
         }
       }
     }
   }
   {% endif %}{% endfor %}
-}
-
-
-#[cfg(test)]
-mod tests {
-    use crate::client::client::Client;
-    use crate::client::tdlib_client::TdLibClient;
-    use crate::client::worker::Worker;
-    use crate::errors::RTDResult;
-    use crate::tdjson;
-    use crate::client::observer::OBSERVER;
-    use crate::types::{Chats, RFunction, RObject, SearchPublicChats, TdlibParameters};
-    use std::time::Duration;
-    use tokio::time::timeout;
-
-    #[derive(Clone)]
-    struct MockedRawApi {
-        to_receive: Option<String>,
-    }
-
-    impl MockedRawApi {
-        pub fn set_to_receive(&mut self, value: String) {
-            trace!("delayed to receive: {}", value);
-            self.to_receive = Some(value);
-        }
-
-        pub fn new() -> Self {
-            Self { to_receive: None }
-        }
-    }
-
-    impl TdLibClient for MockedRawApi {
-        fn send<Fnc: RFunction>(&self, _client_id: tdjson::ClientId, fnc: Fnc) -> RTDResult<()> {
-            Ok(())
-        }
-
-        fn receive(&self, timeout: f64) -> Option<String> {
-            self.to_receive.clone()
-        }
-
-        fn execute<Fnc: RFunction>(&self, _fnc: Fnc) -> RTDResult<Option<String>> {
-            unimplemented!()
-        }
-
-        fn new_client(&self) -> tdjson::ClientId {
-            1
-        }
-    }
-
-    #[tokio::test]
-    async fn test_request_flow() {
-        // here we just test request-response flow with SearchPublicChats request
-        env_logger::init();
-
-        let mut mocked_raw_api = MockedRawApi::new();
-
-        let search_req = SearchPublicChats::builder().build();
-        let chats = Chats::builder().chat_ids(vec![1, 2, 3]).build();
-        let chats: serde_json::Value = serde_json::to_value(chats).unwrap();
-        let mut chats_object = chats.as_object().unwrap().clone();
-        chats_object.insert(
-            "@client_id".to_string(),
-            serde_json::Value::Number(1.into())
-        );
-        chats_object.insert(
-            "@extra".to_string(),
-            serde_json::Value::String(search_req.extra().unwrap().to_string()),
-        );
-        chats_object.insert(
-            "@type".to_string(),
-            serde_json::Value::String("chats".to_string()),
-        );
-        let to_receive = serde_json::to_string(&chats_object).unwrap();
-        mocked_raw_api.set_to_receive(to_receive);
-        trace!("chats objects: {:?}", chats_object);
-
-        let mut worker = Worker::builder().with_tdlib_client(mocked_raw_api.clone()).build().unwrap();
-        worker.start();
-
-        let client = worker.set_client(Client::builder()
-                    .with_tdlib_client(mocked_raw_api.clone())
-                    .with_tdlib_parameters(TdlibParameters::builder().build())
-                    .build()
-                    .unwrap()).await;
-
-        match timeout(
-            Duration::from_secs(10),
-            client.search_public_chats(search_req),
-        )
-        .await
-        {
-            Err(_) => panic!("did not receive response within 1 s"),
-            Ok(Err(e)) => panic!("{}", e),
-            Ok(Ok(result)) => assert_eq!(result.chat_ids(), &vec![1, 2, 3]),
-        }
-    }
 }

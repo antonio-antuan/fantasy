@@ -77,7 +77,7 @@ fn deserialize<D>(deserializer: D) -> Result<TdType, D::Error> where D: Deserial
     if let Some(t) = deserialize_direct_types(rtd_trait_type, rtd_trait_value.clone()).map_err(|err|D::Error::custom(format!("can't deserialize for {} with error: {}", rtd_trait_type, err)))? {
       return Ok(t)
     }
-    return  Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
+    Err(D::Error::custom(format!("got {} @type with unavailable variant", rtd_trait_type)))
  }
 }
 
@@ -95,7 +95,7 @@ fn deserialize_direct_types(rtd_trait_type: &str, rtd_trait_value: serde_json::V
   Ok(match rtd_trait_type { {% for token in tokens %}{% if token.is_return_type and token.type_ != "Trait" %}
   "{{token.name}}" => Some(TdType::{{token.name | to_camel}}(
           serde_json::from_value(
-              rtd_trait_value.clone()
+              rtd_trait_value
           )?
       )),{% endif %}{% endfor %}
       _ => None
@@ -103,7 +103,7 @@ fn deserialize_direct_types(rtd_trait_type: &str, rtd_trait_value: serde_json::V
 }
 
 {% for token in tokens %}{% if token.is_return_type and token.type_ == "Trait" %}
-const {{token.name | to_upper}}_MEMBERS: &'static [&'static str] = &[{% for subt in sub_tokens(token = token) %}"{{subt.name}}", {% endfor %}];
+const {{token.name | to_upper}}_MEMBERS: &[&str] = &[{% for subt in sub_tokens(token = token) %}"{{subt.name}}", {% endfor %}];
 
   fn deserialize_{{ token.name | to_snake }}(rtd_trait_type: &str, rtd_trait_value: serde_json::Value) -> Result<Option<TdType>, serde_json::Error> {
     Ok(match {{token.name | to_upper}}_MEMBERS.contains(&rtd_trait_type) {
