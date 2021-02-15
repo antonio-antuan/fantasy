@@ -1,51 +1,14 @@
+use super::{
+    observer::OBSERVER,
+    tdlib_client::{RawApi, TdLibClient},
+};
 use crate::{
-    client::observer::OBSERVER,
     errors::{RTDError, RTDResult},
     tdjson,
-    types::RFunction,
     types::*,
 };
 use tokio::sync::mpsc;
 
-#[doc(hidden)]
-pub trait TdLibClient {
-    fn send<Fnc: RFunction>(&self, client_id: tdjson::ClientId, fnc: Fnc) -> RTDResult<()>;
-    fn receive(&self, timeout: f64) -> Option<String>;
-    fn execute<Fnc: RFunction>(&self, fnc: Fnc) -> RTDResult<Option<String>>;
-}
-
-#[derive(Clone, Debug)]
-#[doc(hidden)]
-pub struct RawApi;
-
-impl Default for RawApi {
-    fn default() -> Self {
-        Self
-    }
-}
-
-impl TdLibClient for RawApi {
-    fn send<Fnc: RFunction>(&self, client_id: tdjson::ClientId, fnc: Fnc) -> RTDResult<()> {
-        let json = fnc.to_json()?;
-        tdjson::send(client_id, &json[..]);
-        Ok(())
-    }
-
-    fn receive(&self, timeout: f64) -> Option<String> {
-        tdjson::receive(timeout)
-    }
-
-    fn execute<Fnc: RFunction>(&self, fnc: Fnc) -> RTDResult<Option<String>> {
-        let json = fnc.to_json()?;
-        Ok(tdjson::execute(&json[..]))
-    }
-}
-
-impl RawApi {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 /// Represents state of particular client instance.
 #[derive(Debug, Clone)]
@@ -65,7 +28,7 @@ pub struct Client<S>
 where
     S: TdLibClient + Clone,
 {
-    raw_api: S,
+    tdlib_client: S,
     client_id: Option<i32>,
     updates_sender: Option<mpsc::Sender<Update>>,
     tdlib_parameters: TdlibParameters,
@@ -108,7 +71,7 @@ where
 {
     updates_sender: Option<mpsc::Sender<Update>>,
     tdlib_parameters: Option<TdlibParameters>,
-    tdjson: R,
+    tdlib_client: R,
 }
 
 impl Default for ClientBuilder<RawApi> {
@@ -116,7 +79,7 @@ impl Default for ClientBuilder<RawApi> {
         Self {
             updates_sender: None,
             tdlib_parameters: None,
-            tdjson: RawApi::new(),
+            tdlib_client: RawApi::new(),
         }
     }
 }
@@ -139,9 +102,9 @@ where
     }
 
     #[doc(hidden)]
-    pub fn with_tdjson<T: TdLibClient + Clone>(self, tdjson: T) -> ClientBuilder<T> {
+    pub fn with_tdlib_client<T: TdLibClient + Clone>(self, tdlib_client: T) -> ClientBuilder<T> {
         ClientBuilder {
-            tdjson,
+            tdlib_client,
             updates_sender: self.updates_sender,
             tdlib_parameters: self.tdlib_parameters,
         }
@@ -153,7 +116,7 @@ where
         };
 
         let client = Client::new(
-            self.tdjson,
+            self.tdlib_client,
             self.updates_sender,
             self.tdlib_parameters.unwrap(),
         );
@@ -174,12 +137,12 @@ where
 {
     #[doc(hidden)]
     pub fn new(
-        raw_api: R,
+        tdlib_client: R,
         updates_sender: Option<mpsc::Sender<Update>>,
         tdlib_parameters: TdlibParameters,
     ) -> Self {
         Self {
-            raw_api,
+            tdlib_client,
             updates_sender,
             tdlib_parameters,
             client_id: None,
@@ -190,13 +153,14 @@ where
     pub async fn stop(&self) -> RTDResult<Ok> {
         self.close(Close::builder().build()).await
     }
+
 {% for token in tokens %}{% if token.type_ == 'Function' %}
   // {{ token.description }}
   pub async fn {{token.name | to_snake}}<C: AsRef<{{token.name | to_camel}}>>(&self, {{token.name | to_snake}}: C) -> RTDResult<{{token.blood | to_camel}}> {
     let extra = {{token.name | to_snake }}.as_ref().extra()
       .ok_or(RTDError::Internal("invalid tdlib response type, not have `extra` field"))?;
     let signal = OBSERVER.subscribe(&extra);
-    self.raw_api.send(self.get_client_id()?, {{token.name | to_snake }}.as_ref())?;
+    self.tdlib_client.send(self.get_client_id()?, {{token.name | to_snake }}.as_ref())?;
     let received = signal.await;
     OBSERVER.unsubscribe(&extra);
     match received {
@@ -214,97 +178,98 @@ where
   {% endif %}{% endfor %}
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::client::api::TdLibClient;
-//     use crate::client::client::{Client, ConsoleAuthStateHandler};
-//     use crate::errors::RTDResult;
-//     use crate::types::{
-//         Chats, RFunction, RObject, SearchPublicChats, TdlibParameters, UpdateAuthorizationState,
-//     };
-//     use std::time::Duration;
-//     use tokio::sync::mpsc;
-//     use tokio::time::timeout;
-//
-//     #[derive(Clone)]
-//     struct MockedRawApi {
-//         to_receive: Option<String>,
-//     }
-//
-//     impl MockedRawApi {
-//         pub fn set_to_receive(&mut self, value: String) {
-//             trace!("delayed to receive: {}", value);
-//             self.to_receive = Some(value);
-//         }
-//
-//         pub fn new() -> Self {
-//             Self { to_receive: None }
-//         }
-//     }
-//
-//     impl TdLibClient for MockedRawApi {
-//         fn send<Fnc: RFunction>(&self, _fnc: Fnc) -> RTDResult<()> {
-//             Ok(())
-//         }
-//
-//         fn receive(&self, timeout: f64) -> Option<String> {
-//             std::thread::sleep(Duration::from_secs(timeout as u64));
-//             if self.to_receive.is_none() {
-//                 panic!("value to receive not set");
-//             }
-//             self.to_receive.clone()
-//         }
-//
-//         fn execute<Fnc: RFunction>(&self, _fnc: Fnc) -> RTDResult<Option<String>> {
-//             unimplemented!()
-//         }
-//     }
-//
-//     #[tokio::test]
-//     async fn test_request_flow() {
-//         // here we just test request-response flow with SearchPublicChats request
-//         env_logger::init();
-//         let mut mocked_raw_api = MockedRawApi::new();
-//
-//         let search_req = SearchPublicChats::builder().build();
-//
-//         let chats: serde_json::Value = serde_json::from_str(
-//             Chats::builder()
-//                 .chat_ids(vec![1, 2, 3])
-//                 .build()
-//                 .to_json()
-//                 .unwrap()
-//                 .as_str(),
-//         )
-//         .unwrap();
-//         let mut chats_object = chats.as_object().unwrap().clone();
-//         chats_object.insert(
-//             "@extra".to_string(),
-//             serde_json::Value::String(search_req.extra().unwrap()),
-//         );
-//         let to_receive = serde_json::to_string(&chats_object).unwrap();
-//         mocked_raw_api.set_to_receive(to_receive);
-//
-//         let client = Client::new(
-//             mocked_raw_api.clone(),
-//             ConsoleAuthStateHandler::default(),
-//             TdlibParameters::builder().build(),
-//             None,
-//             2.0,
-//         );
-//
-//         let (sx, _rx) = mpsc::channel::<UpdateAuthorizationState>(10);
-//         let _updates_handle = client.init_updates_task(sx);
-//         trace!("chats objects: {:?}", chats_object);
-//         match timeout(
-//             Duration::from_secs(10),
-//             client.api().search_public_chats(search_req),
-//         )
-//         .await
-//         {
-//             Err(_) => panic!("did not receive response within 1 s"),
-//             Ok(Err(e)) => panic!("{}", e),
-//             Ok(Ok(result)) => assert_eq!(result.chat_ids(), &vec![1, 2, 3]),
-//         }
-//     }
-// }
+
+#[cfg(test)]
+mod tests {
+    use crate::client::client::Client;
+    use crate::client::tdlib_client::TdLibClient;
+    use crate::client::worker::Worker;
+    use crate::errors::RTDResult;
+    use crate::tdjson;
+    use crate::client::observer::OBSERVER;
+    use crate::types::{Chats, RFunction, RObject, SearchPublicChats, TdlibParameters};
+    use std::time::Duration;
+    use tokio::time::timeout;
+
+    #[derive(Clone)]
+    struct MockedRawApi {
+        to_receive: Option<String>,
+    }
+
+    impl MockedRawApi {
+        pub fn set_to_receive(&mut self, value: String) {
+            trace!("delayed to receive: {}", value);
+            self.to_receive = Some(value);
+        }
+
+        pub fn new() -> Self {
+            Self { to_receive: None }
+        }
+    }
+
+    impl TdLibClient for MockedRawApi {
+        fn send<Fnc: RFunction>(&self, _client_id: tdjson::ClientId, fnc: Fnc) -> RTDResult<()> {
+            Ok(())
+        }
+
+        fn receive(&self, timeout: f64) -> Option<String> {
+            self.to_receive.clone()
+        }
+
+        fn execute<Fnc: RFunction>(&self, _fnc: Fnc) -> RTDResult<Option<String>> {
+            unimplemented!()
+        }
+
+        fn new_client(&self) -> tdjson::ClientId {
+            1
+        }
+    }
+
+    #[tokio::test]
+    async fn test_request_flow() {
+        // here we just test request-response flow with SearchPublicChats request
+        env_logger::init();
+
+        let mut mocked_raw_api = MockedRawApi::new();
+
+        let search_req = SearchPublicChats::builder().build();
+        let chats = Chats::builder().chat_ids(vec![1, 2, 3]).build();
+        let chats: serde_json::Value = serde_json::to_value(chats).unwrap();
+        let mut chats_object = chats.as_object().unwrap().clone();
+        chats_object.insert(
+            "@client_id".to_string(),
+            serde_json::Value::Number(1.into())
+        );
+        chats_object.insert(
+            "@extra".to_string(),
+            serde_json::Value::String(search_req.extra().unwrap().to_string()),
+        );
+        chats_object.insert(
+            "@type".to_string(),
+            serde_json::Value::String("chats".to_string()),
+        );
+        let to_receive = serde_json::to_string(&chats_object).unwrap();
+        mocked_raw_api.set_to_receive(to_receive);
+        trace!("chats objects: {:?}", chats_object);
+
+        let mut worker = Worker::builder().with_tdlib_client(mocked_raw_api.clone()).build().unwrap();
+        worker.start();
+
+        let client = worker.set_client(Client::builder()
+                    .with_tdlib_client(mocked_raw_api.clone())
+                    .with_tdlib_parameters(TdlibParameters::builder().build())
+                    .build()
+                    .unwrap()).await;
+
+        match timeout(
+            Duration::from_secs(10),
+            client.search_public_chats(search_req),
+        )
+        .await
+        {
+            Err(_) => panic!("did not receive response within 1 s"),
+            Ok(Err(e)) => panic!("{}", e),
+            Ok(Ok(result)) => assert_eq!(result.chat_ids(), &vec![1, 2, 3]),
+        }
+    }
+}
