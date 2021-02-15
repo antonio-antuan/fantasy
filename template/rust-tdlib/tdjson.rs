@@ -1,3 +1,4 @@
+//! Interface for methods defined in [td/td_json_client.h](https://github.com/tdlib/td/blob/master/td/telegram/td_json_client.h).
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_double, c_int, c_long};
@@ -58,19 +59,18 @@ pub fn set_log_verbosity_level(level: i32) {
 // Deprecated. Use setLogStream request instead.
 pub fn set_log_file_path(path: Option<&str>) -> bool {
     let result = match path {
-      None => unsafe { td_set_log_file_path(ptr::null()) },
-      Some(path_) => {
-        let cpath = CString::new(path_).unwrap();
-        unsafe { td_set_log_file_path(cpath.as_ptr()) }
-      }
+        None => unsafe { td_set_log_file_path(ptr::null()) },
+        Some(path_) => {
+            let cpath = CString::new(path_).unwrap();
+            unsafe { td_set_log_file_path(cpath.as_ptr()) }
+        }
     };
     match result {
-      1 => true,
-      0 => false,
-      _ => panic!("unexpected response from libtdjson: {:?}", result)
+        1 => true,
+        0 => false,
+        _ => panic!("unexpected response from libtdjson: {:?}", result),
     }
 }
-
 
 // Deprecated. Use setLogStream request instead.
 pub fn set_log_max_file_size(size: i64) {

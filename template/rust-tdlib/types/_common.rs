@@ -133,7 +133,7 @@ pub(super) fn number_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Err
     T::from_str(&s).map_err(de::Error::custom)
 }
 
-pub fn vec_of_i64_from_str<'de, D>(deserializer: D) -> Result<Vec<i64>, D::Error>
+pub(super) fn vec_of_i64_from_str<'de, D>(deserializer: D) -> Result<Vec<i64>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -151,7 +151,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::_common::deserialize_update;
-    use crate::types::{from_json, AuthorizationState, TdType, Update, UpdateAuthorizationState};
+    use crate::types::{from_json, AuthorizationState, TdType, Update};
 
     #[test]
     fn test_deserialize_enums() {
