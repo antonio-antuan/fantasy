@@ -33,6 +33,7 @@ where
 {
     tdlib_client: S,
     client_id: Option<i32>,
+    is_started: bool,
     updates_sender: Option<mpsc::Sender<Update>>,
     tdlib_parameters: TdlibParameters,
 }
@@ -57,6 +58,7 @@ where
             Some(_) => Err(RTDError::BadRequest("client already authorized")),
             None => {
                 self.client_id = Some(client_id);
+                self.is_started = true;
                 Ok(())
             }
         }
@@ -148,7 +150,20 @@ where
             tdlib_client,
             updates_sender,
             tdlib_parameters,
+            is_started: false,
             client_id: None,
+        }
+    }
+
+    pub fn set_updates_sender(&mut self, updates_sender: mpsc::Sender<Update>) -> RTDResult<()> {
+        match self.is_started {
+            true => Err(RTDError::InvalidParameters(
+                "can't set updates sender when client already started",
+            )),
+            false => {
+                self.updates_sender = Some(updates_sender);
+                Ok(())
+            }
         }
     }
 
