@@ -9,7 +9,7 @@ use crate::{
   errors::*,
   types::*
 };
-use serde::{de, Serialize, Serializer};
+use serde::{de, Serialize};
 
 #[allow(dead_code)]
 pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deserialize<'a>, {
@@ -131,10 +131,6 @@ pub(super) fn number_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Err
 {
     let s = String::deserialize(deserializer)?;
     T::from_str(&s).map_err(de::Error::custom)
-}
-
-pub(super) fn serialize_enum_default<S>(s: S) -> Result<S::Ok, S::Error> where S: Serializer  {
-    Ok(S::serialize(None).ok())
 }
 
 pub(super) fn vec_of_i64_from_str<'de, D>(deserializer: D) -> Result<Vec<i64>, D::Error>

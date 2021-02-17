@@ -158,8 +158,15 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
 
     let traits: HashMap<String, ()> = tknwrap.tokens().iter().filter(|f|f.type_() == TLTokenGroupType::Trait).map(|f|(f.name().to_camel(), ())).collect();
 
-    let is_trait = Box::new(
+    let serde_attr = Box::new(
       move |argument: HashMap<String, Value>| -> tera::Result<Value> {
+        let token: TLTokenGroup = match argument.get("token") {
+            Some(t) => match serde_json::from_value(t.clone()) {
+                Ok(a) => a,
+                Err(e) => return Err("Can't covert token to TLTokenGroup".into()),
+            },
+            None => return Err("Can't found token".into()),
+        };
         let arg: TLTokenArgType = match argument.get("arg") {
           Some(t) => match serde_json::from_value(t.clone()) {
             Ok(a) => a,
@@ -170,7 +177,11 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
         let mut arg_type = tknwrap4.tdtypefill()
           .mapper(arg.sign_type())
           .map_or(arg.sign_type().to_camel(), |v| v);
-        Ok(serde_json::value::to_value(traits.contains_key(arg_type.as_str())).unwrap())
+        let val = match traits.contains_key(arg_type.as_str()) && !tknwrap4.is_optional_arg(&token, &arg) {
+          true => format!(r#"#[serde(skip_serializing_if = "{}::_is_default" )]"#, arg_type),
+          false => "".to_string()
+        };
+        Ok(serde_json::value::to_value(val).unwrap())
       });
 
     // argument type
@@ -317,7 +328,7 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
     });
 
     tera.register_function("td_arg", td_arg);
-    tera.register_function("is_trait", is_trait);
+    tera.register_function("serde_attr", serde_attr);
     tera.register_function("td_macros", td_macros);
     tera.register_function("sub_tokens", sub_tokens);
     tera.register_function("find_token", find_token);
