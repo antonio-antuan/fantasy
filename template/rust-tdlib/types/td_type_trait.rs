@@ -6,7 +6,8 @@ pub trait TD{{trait_name}}: Debug + RObject {}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag="@type")]
 pub enum {{trait_name}} {
-  #[doc(hidden)] _Default(()),
+  #[doc(hidden)]
+  _Default,
 {% for subt in sub_tokens(token=token) %}  /// {{subt.description}}
   #[serde(rename(deserialize = "{{subt.name}}"))]
   {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}({{subt.name | to_camel}}),
@@ -14,7 +15,7 @@ pub enum {{trait_name}} {
 }
 
 impl Default for {{trait_name}} {
-  fn default() -> Self { {{trait_name}}::_Default(()) }
+  fn default() -> Self { {{trait_name}}::_Default }
 }
 
 impl RObject for {{trait_name}} {
@@ -36,7 +37,7 @@ impl RObject for {{trait_name}} {
 
 impl {{trait_name}} {
   pub fn from_json<S: AsRef<str>>(json: S) -> RTDResult<Self> { Ok(serde_json::from_str(json.as_ref())?) }
-  #[doc(hidden)] pub fn _is_default(&self) -> bool { matches!(self, {{trait_name}}::_Default(_)) }
+  #[doc(hidden)] pub fn _is_default(&self) -> bool { matches!(self, {{trait_name}}::_Default) }
 }
 
 impl AsRef<{{trait_name}}> for {{trait_name}} {

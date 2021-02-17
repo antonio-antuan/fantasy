@@ -44,7 +44,7 @@ impl TokenWrap {
         SKIP_TYPES.contains(&&type_name[..])
     }
 
-    /// The file where td type is located
+    /// The file where td type is located. Also used with `use` statements;
     pub fn which_file(&self, type_name: String) -> String {
         let token = self
             .tokens
@@ -55,7 +55,7 @@ impl TokenWrap {
             return token.name().to_snake();
         }
         if token.type_() == TLTokenGroupType::Function {
-            return "functions".to_string();
+            return format!("{}", token.name().to_snake())
         }
         match token.blood() {
             Some(blood) => {

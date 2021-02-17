@@ -8,7 +8,15 @@ pub struct {{struct_name}} {
   #[serde(rename(serialize = "@client_id", deserialize = "@client_id"))]
   client_id: Option<i32>,
   {% for field in token.arguments %}/// {{field.description}}
-  {% for macro_ in td_macros(arg=field, token=token) %}{{macro_}} {% endfor %}{% if field.sign_name == 'type' %}#[serde(rename(serialize = "type", deserialize = "type"))] {% endif %}{% set field_type = td_arg(arg=field, token=token) %}{% if field.sign_type == "vector" %}{% for c in field.components %}{% if c.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::vec_of_i64_from_str")]{% endif %}{% endfor %}{% elif field.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::number_from_string")]{% endif %}{{field.sign_name | td_safe_field}}: {{ field_type }},{% endfor %}
+  {% for macro_ in td_macros(arg=field, token=token) %}{{macro_}} {% endfor %}
+  {% if field.sign_name == 'type' %}#[serde(rename(serialize = "type", deserialize = "type"))] {% endif %}
+  {% set field_type = td_arg(arg=field, token=token) %}
+  {% if field.sign_type == "vector" %}{% for c in field.components %}{% if c.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::vec_of_i64_from_str")]{% endif %}{% endfor %}
+  {% elif field.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::number_from_string")]{% endif %}
+  {% if is_trait(arg=field) == true %}
+  #[serde(skip_serializing_if = "{{field_type}}::_is_default" )]
+  {% endif %}
+  {{field.sign_name | td_safe_field}}: {{ field_type }},{% endfor %}
   {% if token.type_ == 'Function' %}
   #[serde(rename(serialize = "@type"))]
   td_type: String

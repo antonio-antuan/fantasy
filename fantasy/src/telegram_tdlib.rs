@@ -6,7 +6,7 @@ use case::CaseExt;
 use colored::Colorize;
 use tera::Context;
 
-use tl_parser::types::TLTokenGroup;
+use tl_parser::types::{TLTokenGroup, TLTokenGroupType};
 
 use crate::tokenwrap::TokenWrap;
 use crate::Cycle;
@@ -114,20 +114,6 @@ impl<'a> TGClient<'a> {
         let tokens = tknwrap.tokens();
         context.insert("tokens", tokens);
 
-        let listener: HashMap<&String, &String> = tknwrap
-            .tdtypefill()
-            .listener()
-            .iter()
-            .filter(|(key, value)| {
-                tknwrap
-                    .tokens()
-                    .iter()
-                    .filter(|&token| token.blood() == Some("Update".to_string()))
-                    .find(|&token| token.name().to_lowercase() == value.to_lowercase())
-                    .is_none()
-            })
-            .collect();
-        context.insert("listener", &listener);
         let mut file_obj_map = HashMap::new();
         for token in tokens {
             if tknwrap.is_skip_type(token.name()) {
