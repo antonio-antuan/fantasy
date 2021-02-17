@@ -257,7 +257,7 @@ where
         mut client: Client<T>,
     ) -> RTDResult<(JoinHandle<ClientState>, Client<T>)> {
         if !self.is_running() {
-            return Err(RTDError::BadRequest("worker not started yet"))
+            return Err(RTDError::BadRequest("worker not started yet"));
         };
         let client_id = self.tdlib_client.new_client();
         log::debug!("new client created: {}", client_id);
@@ -342,9 +342,9 @@ where
     pub fn start(&mut self) -> JoinHandle<ClientState> {
         let (auth_sx, auth_rx) = mpsc::channel::<UpdateAuthorizationState>(20);
 
+        self.run_flag.store(true, Ordering::Release);
         let updates_handle = self.init_updates_task(auth_sx);
         let auth_handle = self.init_auth_task(auth_rx);
-        self.run_flag.store(true, Ordering::Release);
 
         let run_flag = self.run_flag.clone();
 
@@ -363,6 +363,7 @@ where
                     Err(e) => ClientState::Error(e.to_string()),
                 },
             };
+            run_flag.store(false, Ordering::Release);
             res_state
         })
     }
@@ -386,7 +387,7 @@ where
 
         tokio::spawn(async move {
             let current = tokio::runtime::Handle::try_current().unwrap();
-            while !run_flag.load(Ordering::Acquire) {
+            while self.run_flag.load(Ordering::Acquire) {
                 let cl = tdlib_client.clone();
                 if let Some(json) = current
                     .spawn_blocking(move || cl.receive(recv_timeout))
@@ -637,39 +638,40 @@ mod tests {
             .unwrap();
         let res = timeout(
             Duration::from_millis(50),
-            worker
-            .auth_client(
-            Client::builder()
-                .with_tdlib_client(mocked_raw_api.clone())
-                .with_tdlib_parameters(TdlibParameters::builder().build())
-                .build()
-                .unwrap(),
-        )).await;
+            worker.auth_client(
+                Client::builder()
+                    .with_tdlib_client(mocked_raw_api.clone())
+                    .with_tdlib_parameters(TdlibParameters::builder().build())
+                    .build()
+                    .unwrap(),
+            ),
+        )
+        .await;
         match res {
             Err(e) => panic!("{:?}", e),
             Ok(v) => match v {
                 Err(e) => assert_eq!(e.to_string(), "worker not started yet".to_string()),
                 Ok(_) => panic!("error not raised"),
-            }
+            },
         };
 
         worker.start();
         // we can't handle first request because we do not know @extra. so just wait a while.
         let res = timeout(
             Duration::from_millis(50),
-            worker
-            .auth_client(
-            Client::builder()
-                .with_tdlib_client(mocked_raw_api.clone())
-                .with_tdlib_parameters(TdlibParameters::builder().build())
-                .build()
-                .unwrap(),
-        )).await;
+            worker.auth_client(
+                Client::builder()
+                    .with_tdlib_client(mocked_raw_api.clone())
+                    .with_tdlib_parameters(TdlibParameters::builder().build())
+                    .build()
+                    .unwrap(),
+            ),
+        )
+        .await;
         match res {
-            Err(_) => {},
-            _ => panic!("error not raised")
+            Err(_) => {}
+            _ => panic!("error not raised"),
         };
-
     }
 
     #[tokio::test]
