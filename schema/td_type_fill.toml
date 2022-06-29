@@ -35,6 +35,12 @@ sign_type = "Box<PageBlock>"
 optional = false
 reason = "recursive type"
 
+[filter.TargetChatInternalLink]
+[filter.TargetChatInternalLink.link]
+sign_type = "Box<InternalLinkType>"
+optional = false
+reason = "recursive type"
+
 
 [filter.RichTextPlain]
 [filter.RichTextPlain.text]

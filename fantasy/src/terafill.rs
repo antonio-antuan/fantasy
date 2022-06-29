@@ -174,14 +174,24 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
           },
           None => return Err("Can't found arg".into()),
         };
+        if token.name() == "animatedChatPhoto".to_string() && arg.sign_type() == "file".to_string() {
+          let x = 1;
+          println!("1");
+        }
         let mut arg_type = tknwrap4.tdtypefill()
           .mapper(arg.sign_type())
           .map_or(arg.sign_type().to_camel(), |v| v);
-        let val = match traits.contains_key(arg_type.as_str()) && !tknwrap4.is_optional_arg(&token, &arg) {
-          true => format!(r#"#[serde(skip_serializing_if = "{}::_is_default" )]"#, arg_type),
-          false => "".to_string()
-        };
-        Ok(serde_json::value::to_value(val).unwrap())
+        if traits.contains_key(arg_type.as_str()) && !tknwrap4.is_optional_arg(&token, &arg) {
+          let val = format!(
+            r#"#[serde(skip_serializing_if = "{}::_is_default" )]"#,
+            arg_type
+          );
+          Ok(serde_json::value::to_value(val).unwrap())
+        } else if tknwrap4.tdtypefill().mapper(arg.sign_type()).is_some() {
+          Ok(serde_json::value::to_value("#[serde(default)]").unwrap())
+        } else {
+          Ok(serde_json::value::to_value("").unwrap())
+        }
       });
 
     // argument type
