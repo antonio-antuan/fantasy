@@ -37,7 +37,7 @@ fn main() {
     let config: Config = Config::builder()
         .template_path(project_path.join("template/rust-tdlib"))
         .output_dir("/home/sergey/Projects/rust-tdlib/src")
-        .file_tl(project_path.join("schema/master/td-api.tl"))
+        .file_tl(project_path.join("/home/sergey/Projects/fantasy/schema/v1.8.0/td_api.tl"))
         .build();
 
     let mut tera = Tera::new("template/**/*").expect("Can not create Tera template engine.");

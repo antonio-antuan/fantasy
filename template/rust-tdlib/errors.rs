@@ -1,10 +1,12 @@
 use std::{error, fmt, io};
 
+pub type TDLibError = crate::types::Error;
+
 #[derive(Debug)]
 pub enum RTDError {
     Io(io::Error),
     SerdeJson(serde_json::Error),
-    TdlibError(String),
+    TDLibError(TDLibError),
     Internal(&'static str),
     BadRequest(&'static str),
 }
@@ -20,8 +22,8 @@ impl fmt::Display for RTDError {
             RTDError::SerdeJson(err) => {
                 write!(f, "{}", err)
             }
-            RTDError::TdlibError(err) => {
-                write!(f, "{}", err)
+            RTDError::TDLibError(err) => {
+                write!(f, "{:?}", err)
             }
             RTDError::Internal(err) => {
                 write!(f, "{}", err)
@@ -39,7 +41,7 @@ impl error::Error for RTDError {
             RTDError::Io(ref err) => Some(err),
             RTDError::SerdeJson(ref err) => Some(err),
             RTDError::Internal(_) => None,
-            RTDError::TdlibError(_) => None,
+            RTDError::TDLibError(_) => None,
             RTDError::BadRequest(_) => None,
         }
     }
@@ -57,17 +59,15 @@ impl From<serde_json::Error> for RTDError {
     }
 }
 
-
 const CLOSED_CHANNEL_ERROR: RTDError = RTDError::Internal("channel closed");
 const SEND_TO_CHANNEL_TIMEOUT: RTDError = RTDError::Internal("timeout for mpsc occurred");
-
 
 #[cfg(feature = "client")]
 impl<T> From<tokio::sync::mpsc::error::SendTimeoutError<T>> for RTDError {
     fn from(err: tokio::sync::mpsc::error::SendTimeoutError<T>) -> Self {
         match err {
-            tokio::sync::mpsc::error::SendTimeoutError::Timeout(_) => {SEND_TO_CHANNEL_TIMEOUT}
-            tokio::sync::mpsc::error::SendTimeoutError::Closed(_) => {CLOSED_CHANNEL_ERROR}
+            tokio::sync::mpsc::error::SendTimeoutError::Timeout(_) => SEND_TO_CHANNEL_TIMEOUT,
+            tokio::sync::mpsc::error::SendTimeoutError::Closed(_) => CLOSED_CHANNEL_ERROR,
         }
     }
 }
