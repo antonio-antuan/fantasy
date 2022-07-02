@@ -160,3 +160,12 @@ optional = true
 #proxy = "Proxy"
 
 
+[boxes_variants]
+Update=["UpdateNewChat", "ChatEventMessageEdited"]
+ChatEventAction=["ChatEventMessageDeleted", "ChatEventMessageEdited", "ChatEventMessagePinned"]
+DiceStickers=["DiceStickersRegular", "DiceStickersSlotMachine"]
+InlineQueryResult=["InlineQueryResultGame", "InlineQueryResultVideo"]
+MessageContent=["MessageDice", "MessageText"]
+NotificationType=["NotificationTypeNewMessage", "NotificationTypeNewPushMessage"]
+RichText=["RichTextIcon"]
+TMeUrlType=["TMeUrlTypeChatInvite"]

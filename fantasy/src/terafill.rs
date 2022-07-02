@@ -130,6 +130,7 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
     let tknwrap2 = tknwrap.clone();
     let tknwrap3 = tknwrap.clone();
     let tknwrap4 = tknwrap.clone();
+    let tknwrap5 = tknwrap.clone();
 
     // argument serde_aux field_attributes
     let td_macros = Box::new(
@@ -194,7 +195,16 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
         }
       });
 
-    // argument type
+
+  let  td_update_variant = Box::new(
+    move|arg: HashMap<String, Value>| -> tera::Result<Value> {
+    let tdtypefill = tknwrap5.tdtypefill();
+    let enum_name = arg.get("enum_name").unwrap().as_str().unwrap();
+    let variant_name = arg.get("variant_name").unwrap().as_str().unwrap();
+    Ok(Value::String(tdtypefill.update_variant(enum_name, variant_name)))
+  });
+
+  // argument type
     let td_arg = Box::new(
         move |argument: HashMap<String, Value>| -> tera::Result<Value> {
             let tdtypefill = tknwrap0.tdtypefill();
@@ -213,6 +223,9 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
                 },
                 None => return Err("Can't found arg".into()),
             };
+            if token.name().as_str() == "update" {
+              panic!("foo")
+            }
             let builder_arg = match argument.get("builder_arg") {
                 Some(t) => match t.as_bool() {
                     Some(t) => t,
@@ -339,6 +352,7 @@ fn add_td_fnc(tera: &mut Tera, tknwrap: TokenWrap) -> Result<(), failure::Error>
 
     tera.register_function("td_arg", td_arg);
     tera.register_function("serde_attr", serde_attr);
+    tera.register_function("td_update_variant", td_update_variant);
     tera.register_function("td_macros", td_macros);
     tera.register_function("sub_tokens", sub_tokens);
     tera.register_function("find_token", find_token);

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env::var;
 use std::path::{Path, PathBuf};
 
 /// td type fill
@@ -10,6 +11,7 @@ pub struct TDTypeFill {
     filter: HashMap<String, HashMap<String, TDTypeFilter>>,
     /// addition listener
     listener: HashMap<String, String>,
+    boxes_variants: HashMap<String, Vec<String>>,
 }
 
 impl TDTypeFill {
@@ -34,6 +36,19 @@ impl TDTypeFill {
     pub fn mapper<S: AsRef<str>>(&self, origin: S) -> Option<String> {
         self.mapper.get(origin.as_ref()).map(|v| v.to_string())
     }
+
+  pub fn update_variant<S: AsRef<str>>(&self, enum_name: S, variant_name: &str) -> String {
+    match self.boxes_variants.get(enum_name.as_ref()) {
+      None => {variant_name.to_string()}
+      Some(v) => {
+        if v.contains(&variant_name.to_string()) {
+          format!("Box<{variant_name}>")
+        } else {
+          variant_name.to_string()
+        }
+      }
+    }
+  }
 
     pub fn td_filter<S0: AsRef<str>, S1: AsRef<str>>(
         &self,

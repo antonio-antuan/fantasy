@@ -10,7 +10,8 @@ pub enum {{trait_name}} {
   _Default,
 {% for subt in sub_tokens(token=token) %}  /// {{subt.description}}
   #[serde(rename(deserialize = "{{subt.name}}"))]
-  {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}({{subt.name | to_camel}}),
+  {% set variant_name = td_update_variant(variant_name=subt.name | to_camel, enum_name=trait_name) %}
+  {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}({{variant_name}}),
 {% endfor %}
 }
 
