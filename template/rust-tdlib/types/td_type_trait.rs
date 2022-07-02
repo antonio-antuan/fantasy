@@ -37,7 +37,7 @@ impl RObject for {{trait_name}} {
 }
 
 impl {{trait_name}} {
-  pub fn from_json<S: AsRef<str>>(json: S) -> RTDResult<Self> { Ok(serde_json::from_str(json.as_ref())?) }
+  pub fn from_json<S: AsRef<str>>(json: S) -> Result<Self> { Ok(serde_json::from_str(json.as_ref())?) }
   #[doc(hidden)] pub fn _is_default(&self) -> bool { matches!(self, {{trait_name}}::_Default) }
 }
 

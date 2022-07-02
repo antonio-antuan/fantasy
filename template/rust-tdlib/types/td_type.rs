@@ -1,5 +1,5 @@
 {% if first_write %}use crate::types::*;
-use crate::errors::*;
+use crate::errors::Result;
 use uuid::Uuid;
 {% endif %}{% if token.type_ == "Trait" %}
 {% if first_write %}use std::fmt::Debug;{% endif %}

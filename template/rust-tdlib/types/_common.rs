@@ -12,7 +12,7 @@ use crate::{
 use serde::{de, Serialize};
 
 #[allow(dead_code)]
-pub fn from_json<'a, T>(json: &'a str) -> RTDResult<T> where T: serde::de::Deserialize<'a>, {
+pub fn from_json<'a, T>(json: &'a str) -> Result<T> where T: serde::de::Deserialize<'a>, {
   Ok(serde_json::from_str(json)?)
 }
 
@@ -24,7 +24,7 @@ pub trait RObject: Debug {
 }
 
 pub trait RFunction: Debug + RObject + Serialize {
-  fn to_json(&self) -> RTDResult<String> {
+  fn to_json(&self) -> Result<String> {
       Ok(serde_json::to_string(self)?)
   }
 }

@@ -32,14 +32,14 @@ impl RObject for {{struct_name}} {
 {% if token.type_ == 'Function' %}impl RFunction for {{struct_name}} {}{% endif %}
 
 impl {{struct_name}} {
-  pub fn from_json<S: AsRef<str>>(json: S) -> RTDResult<Self> { Ok(serde_json::from_str(json.as_ref())?) }
-  pub fn builder() -> RTD{{struct_name}}Builder {
+  pub fn from_json<S: AsRef<str>>(json: S) -> Result<Self> { Ok(serde_json::from_str(json.as_ref())?) }
+  pub fn builder() -> {{struct_name}}Builder {
     let mut inner = {{struct_name}}::default();
     inner.extra = Some(Uuid::new_v4().to_string());
     {% if token.type_ == 'Function' %}
     inner.td_type = "{{token.name}}".to_string();
     {% endif %}
-    RTD{{struct_name}}Builder { inner }
+    {{struct_name}}Builder { inner }
   }
 {% for field in token.arguments %}{% set field_type = td_arg(arg=field, token=token) %}{% set is_primitive = is_primitive(type_ = field_type) %}
   pub fn {{field.sign_name | td_safe_field}}(&self) -> {% if not is_primitive %}&{% endif %}{{field_type}} { {% if not is_primitive %}&{% endif %}self.{{field.sign_name | td_safe_field}} }
@@ -47,11 +47,14 @@ impl {{struct_name}} {
 }
 
 #[doc(hidden)]
-pub struct RTD{{struct_name}}Builder {
+pub struct {{struct_name}}Builder {
   inner: {{struct_name}}
 }
 
-impl RTD{{struct_name}}Builder {
+#[deprecated]
+pub type RTD{{struct_name}}Builder = {{struct_name}}Builder;
+
+impl {{struct_name}}Builder {
   pub fn build(&self) -> {{struct_name}} { self.inner.clone() }
 {% for field in token.arguments %}
 {% set builder_field_type=td_arg(arg=field, token=token, builder_arg=true) %} {% set sign_name = field.sign_name | td_safe_field %} {% set is_optional = is_optional(type_=td_arg(arg=field, token=token)) %} {% set is_builder_ref = is_builder_ref(type_ = builder_field_type) %}
@@ -66,6 +69,6 @@ impl AsRef<{{struct_name}}> for {{struct_name}} {
   fn as_ref(&self) -> &{{struct_name}} { self }
 }
 
-impl AsRef<{{struct_name}}> for RTD{{struct_name}}Builder {
+impl AsRef<{{struct_name}}> for {{struct_name}}Builder {
   fn as_ref(&self) -> &{{struct_name}} { &self.inner }
 }
