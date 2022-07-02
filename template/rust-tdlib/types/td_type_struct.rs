@@ -40,7 +40,7 @@ impl {{struct_name}} {
     inner.td_type = "{{token.name}}".to_string();
     {% endif %}
     {{struct_name}}Builder { inner }
-  }c
+  }
 {% for field in token.arguments %}{% set field_type = td_arg(arg=field, token=token) %}{% set is_primitive = is_primitive(type_ = field_type) %}
   pub fn {{field.sign_name | td_safe_field}}(&self) -> {% if not is_primitive %}&{% endif %}{{field_type}} { {% if not is_primitive %}&{% endif %}self.{{field.sign_name | td_safe_field}} }
 {% endfor %}

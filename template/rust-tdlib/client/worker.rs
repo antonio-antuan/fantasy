@@ -439,12 +439,17 @@ where
                                     log::error!("client not found")
                                 }
                                 Some(cl) => {
-                                    if let Some(state_sender) = cl.pub_state_message_sender() {
-                                        if let Err(err) = state_sender
-                                            .send_timeout(Err((err, auth_state)), send_timeout)
-                                            .await
-                                        {
-                                            log::error!("cannot send client state changes: {}", err)
+                                    match cl.pub_state_message_sender() {
+                                        Some(state_sender) => {
+                                            if let Err(err) = state_sender
+                                                .send_timeout(Err((err, auth_state)), send_timeout)
+                                                .await
+                                            {
+                                                log::error!("cannot send client state changes: {}", err)
+                                            }
+                                        },
+                                        None => {
+                                            log::error!("error received and possibly cannot be handled because of empty state receiver: {err}")
                                         }
                                     }
                                 }
@@ -469,7 +474,7 @@ async fn handle_td_resp_received<S: TdLibClient + Send + Sync + Clone>(
             if let Some(t) = OBSERVER.notify(t) {
                 match serde_json::from_value::<Update>(t) {
                     Err(err) => {
-                      log::error!("cannot deserialize to update: {err:?}, data: {response:?}")
+                        log::error!("cannot deserialize to update: {err:?}, data: {response:?}")
                     }
                     Ok(update) => {
                         if let Update::AuthorizationState(auth_state) = update {
@@ -695,9 +700,9 @@ async fn first_internal_request<S: TdLibClient>(tdlib_client: &S, client_id: Cli
 
 #[cfg(test)]
 mod tests {
-    use crate::client::Client;
     use crate::client::tdlib_client::TdLibClient;
     use crate::client::worker::Worker;
+    use crate::client::Client;
     use crate::errors::Result;
     use crate::tdjson;
     use crate::types::{Chats, RFunction, RObject, SearchPublicChats, TdlibParameters};
