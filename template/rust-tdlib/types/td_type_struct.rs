@@ -12,7 +12,7 @@ pub struct {{struct_name}} {
   {% if field.sign_name == 'type' %}#[serde(rename(serialize = "type", deserialize = "type"))] {% endif %}
   {% set field_type = td_arg(arg=field, token=token) %}
   {% if field.sign_type == "vector" %}{% for c in field.components %}{% if c.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::vec_of_i64_from_str")]{% endif %}{% endfor %}
-  {% elif field.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::number_from_string")]{% endif %}
+  {% elif field.sign_type == "int64" %}#[serde(deserialize_with = "super::_common::number_from_string", serialize_with = "super::_common::string_to_number")]{% endif %}
   {{ serde_attr(arg=field, token=token) }}
   {{field.sign_name | td_safe_field}}: {{ field_type }},{% endfor %}
   {% if token.type_ == 'Function' %}
