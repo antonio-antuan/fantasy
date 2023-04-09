@@ -3,20 +3,17 @@
 pub trait TD{{trait_name}}: Debug + RObject {}
 
 /// {{token.description}}
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(tag="@type")]
 pub enum {{trait_name}} {
   #[doc(hidden)]
+  #[default]
   _Default,
 {% for subt in sub_tokens(token=token) %}  /// {{subt.description}}
   #[serde(rename = "{{subt.name}}")]
   {% set variant_name = td_update_variant(variant_name=subt.name | to_camel, enum_name=trait_name) %}
   {{subt.name | td_remove_prefix(prefix=trait_name) | to_camel}}({{variant_name}}),
 {% endfor %}
-}
-
-impl Default for {{trait_name}} {
-  fn default() -> Self { {{trait_name}}::_Default }
 }
 
 impl RObject for {{trait_name}} {
