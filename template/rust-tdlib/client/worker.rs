@@ -5,7 +5,8 @@ use super::{
     tdlib_client::{TdJson, TdLibClient},
     {Client, ClientState},
 };
-use crate::types::{GetAuthorizationState, JsonValue};
+use crate::client::{ClientIdentifier, CLIENT_NOT_AUTHORIZED};
+use crate::types::{CheckAuthenticationBotToken, GetAuthorizationState, JsonValue};
 use crate::{
     errors::{Error, Result},
     tdjson::ClientId,
@@ -42,7 +43,7 @@ impl Default for WorkerBuilder<ConsoleAuthStateHandler, TdJson> {
     /// Provides default implementation with [ConsoleAuthStateHandler](crate::client::client::ConsoleAuthStateHandler)
     fn default() -> Self {
         Self {
-            read_updates_timeout: 2.0,
+            read_updates_timeout: 1.0,
             channels_send_timeout: 5.0,
             auth_state_handler: ConsoleAuthStateHandler::new(),
             tdlib_client: TdJson::new(),
@@ -209,7 +210,7 @@ where
     /// If an error occured during authorization flow, you receive [AuthorizationState](crate::types::authorization_state::AuthorizationState) on which it happened.
     /// You have to setup [channel](tokio::sync::mpsc::channel) by call [Client::builder().with_auth_state_channel(...)](Client::builder().with_auth_state_channel(...))
     pub async fn wait_auth_state_change(&self, client: &Client<T>) -> Result<StateMessage> {
-        let client_id = client.get_client_id()?;
+        let client_id = client.get_client_id().ok_or(CLIENT_NOT_AUTHORIZED)?;
         match self.clients.read().await.get(&client_id) {
             None => {Err(Error::BadRequest("client not authorized yet"))}
             Some(v) => {
@@ -229,7 +230,7 @@ where
     /// Method may be useful if client already authorized on, for example, previous application startup.
     pub async fn wait_client_state(&self, client: &Client<T>) -> Result<ClientState> {
         let guard = self.clients.read().await;
-        match guard.get(&client.get_client_id()?) {
+        match guard.get(&client.get_client_id().ok_or(CLIENT_NOT_AUTHORIZED)?) {
             None => Err(Error::BadRequest("client not bound yet")),
             Some(ctx) => {
                 let mut rec = ctx.private_state_message_receiver().lock().await;
@@ -247,7 +248,25 @@ where
         let client_id = client.get_tdlib_client().new_client();
         log::debug!("new client created: {}", client_id);
         client.set_client_id(client_id)?;
+        self.store_client_context(&client).await?;
 
+        Ok(client)
+    }
+
+    pub async fn reload_client(&mut self, mut client: Client<T>) -> Result<Client<T>> {
+        if !self.is_running() {
+            return Err(Error::BadRequest("worker not started yet"));
+        };
+        let client_id = client.get_tdlib_client().new_client();
+        log::debug!("new client created: {}", client_id);
+        let old_client_id = client.reload(client_id).await?;
+        self.store_client_context(&client).await?;
+        self.clients.write().await.remove(&old_client_id);
+
+        Ok(client)
+    }
+
+    async fn store_client_context(&self, client: &Client<T>) -> Result<()> {
         let (sx, rx) = match client.get_auth_state_channel_size() {
             None => (None, None),
             Some(size) => {
@@ -265,6 +284,8 @@ where
             private_state_message_sender: psx,
         };
 
+        let client_id = client.get_client_id().ok_or(CLIENT_NOT_AUTHORIZED)?;
+
         self.clients.write().await.insert(client_id, ctx);
         log::debug!("new client added");
 
@@ -274,7 +295,7 @@ where
 
         log::trace!("received first internal response");
 
-        Ok(client)
+        Ok(())
     }
 
     /// Determines that the worker is running.
@@ -376,29 +397,7 @@ where
         })
     }
 
-    pub async fn handle_auth_state(
-        &self,
-        auth_state: &AuthorizationState,
-        client: &Client<T>,
-    ) -> Result<()> {
-        let clients_guard = self.clients.read().await;
-        match clients_guard.get(&client.get_client_id()?) {
-            None => Err(Error::BadRequest("client not bound yet")),
-            Some(ctx) => {
-                handle_auth_state(
-                    client,
-                    ctx.pub_state_message_sender(),
-                    ctx.private_state_message_sender(),
-                    self.auth_state_handler.as_ref(),
-                    auth_state,
-                    self.channels_send_timeout,
-                )
-                .await
-            }
-        }
-    }
-
-    // created task handles [UpdateAuthorizationState][crate::types::UpdateAuthorizationState] and sends it to particular methods of specified [AuthStateHandler](crate::client::client::AuthStateHandler)
+    // creates task handles [UpdateAuthorizationState][crate::types::UpdateAuthorizationState] and sends it to particular methods of specified [AuthStateHandler](crate::client::client::AuthStateHandler)
     fn init_auth_task(
         &self,
         mut auth_rx: mpsc::Receiver<UpdateAuthorizationState>,
@@ -438,21 +437,19 @@ where
                                 None => {
                                     log::error!("client not found")
                                 }
-                                Some(cl) => {
-                                    match cl.pub_state_message_sender() {
-                                        Some(state_sender) => {
-                                            if let Err(err) = state_sender
-                                                .send_timeout(Err((err, auth_state)), send_timeout)
-                                                .await
-                                            {
-                                                log::error!("cannot send client state changes: {}", err)
-                                            }
-                                        },
-                                        None => {
-                                            log::error!("error received and possibly cannot be handled because of empty state receiver: {err}")
+                                Some(cl) => match cl.pub_state_message_sender() {
+                                    Some(state_sender) => {
+                                        if let Err(err) = state_sender
+                                            .send_timeout(Err((err, auth_state)), send_timeout)
+                                            .await
+                                        {
+                                            log::error!("cannot send client state changes: {}", err)
                                         }
                                     }
-                                }
+                                    None => {
+                                        log::warn!("error received and possibly cannot be handled because of empty state receiver for client {client_id}: {err}")
+                                    }
+                                },
                             };
                         }
                     }
@@ -530,14 +527,18 @@ where
     }
 }
 
-async fn handle_auth_state<A: AuthStateHandler + Sync, R: TdLibClient + Clone>(
+async fn handle_auth_state<A, R>(
     client: &Client<R>,
     pub_state_sender: &Option<mpsc::Sender<StateMessage>>,
     private_state_sender: &mpsc::Sender<ClientState>,
     auth_state_handler: &A,
     state: &AuthorizationState,
-    send_state_timeout: time::Duration,
-) -> Result<()> {
+    send_state_timeout: Duration,
+) -> Result<()>
+where
+    A: AuthStateHandler + Sync,
+    R: TdLibClient + Clone,
+{
     log::debug!("handling new auth state: {:?}", state);
     let mut result_state = None;
     let res = match state {
@@ -554,7 +555,9 @@ async fn handle_auth_state<A: AuthStateHandler + Sync, R: TdLibClient + Clone>(
             Ok(())
         }
         AuthorizationState::WaitCode(wait_code) => {
-            let code = auth_state_handler.handle_wait_code(wait_code).await;
+            let code = auth_state_handler
+                .handle_wait_code(client.get_auth_handler(), wait_code)
+                .await;
             client
                 .check_authentication_code(CheckAuthenticationCode::builder().code(code).build())
                 .await?;
@@ -562,7 +565,7 @@ async fn handle_auth_state<A: AuthStateHandler + Sync, R: TdLibClient + Clone>(
         }
         AuthorizationState::WaitEncryptionKey(wait_encryption_key) => {
             let key = auth_state_handler
-                .handle_encryption_key(wait_encryption_key)
+                .handle_encryption_key(client.get_auth_handler(), wait_encryption_key)
                 .await;
             log::debug!("checking encryption key");
             client
@@ -578,13 +581,18 @@ async fn handle_auth_state<A: AuthStateHandler + Sync, R: TdLibClient + Clone>(
         AuthorizationState::WaitOtherDeviceConfirmation(wait_device_confirmation) => {
             log::debug!("handling other device confirmation");
             auth_state_handler
-                .handle_other_device_confirmation(wait_device_confirmation)
+                .handle_other_device_confirmation(
+                    client.get_auth_handler(),
+                    wait_device_confirmation,
+                )
                 .await;
             log::debug!("handled other device confirmation");
             Ok(())
         }
         AuthorizationState::WaitPassword(wait_password) => {
-            let password = auth_state_handler.handle_wait_password(wait_password).await;
+            let password = auth_state_handler
+                .handle_wait_password(client.get_auth_handler(), wait_password)
+                .await;
             log::debug!("checking password");
             client
                 .check_authentication_password(
@@ -597,22 +605,34 @@ async fn handle_auth_state<A: AuthStateHandler + Sync, R: TdLibClient + Clone>(
             Ok(())
         }
         AuthorizationState::WaitPhoneNumber(wait_phone_number) => {
-            let phone_number = auth_state_handler
-                .handle_wait_phone_number(wait_phone_number)
+            let identifier = auth_state_handler
+                .handle_wait_client_identifier(client.get_auth_handler(), wait_phone_number)
                 .await;
-            client
-                .set_authentication_phone_number(
-                    SetAuthenticationPhoneNumber::builder()
-                        .phone_number(phone_number)
-                        .build(),
-                )
-                .await?;
-            Ok(())
+            match identifier {
+                ClientIdentifier::BotToken(token) => {
+                    client
+                        .check_authentication_bot_token(
+                            CheckAuthenticationBotToken::builder().token(token).build(),
+                        )
+                        .await?;
+                    Ok(())
+                }
+                ClientIdentifier::PhoneNumber(phone) => {
+                    client
+                        .set_authentication_phone_number(
+                            SetAuthenticationPhoneNumber::builder()
+                                .phone_number(phone)
+                                .build(),
+                        )
+                        .await?;
+                    Ok(())
+                }
+            }
         }
         AuthorizationState::WaitRegistration(wait_registration) => {
             log::debug!("handling wait registration");
             let (first_name, last_name) = auth_state_handler
-                .handle_wait_registration(wait_registration)
+                .handle_wait_registration(client.get_auth_handler(), wait_registration)
                 .await;
             let register = RegisterUser::builder()
                 .first_name(first_name)
@@ -691,8 +711,9 @@ async fn first_internal_request<S: TdLibClient>(tdlib_client: &S, client_id: Cli
     match received {
         Err(_) => log::error!("receiver already closed"),
         Ok(v) => {
+            log::trace!("first internal response: {v}");
             if let Err(e) = serde_json::from_value::<JsonValue>(v) {
-                log::error!("invalid response received: {}", e)
+                log::warn!("invalid first internal response received: {}", e)
             }
         }
     };
